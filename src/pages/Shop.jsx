@@ -1,0 +1,9 @@
+import { Link, useSearchParams } from 'react-router-dom'
+import { products, categories, formatPrice } from '../data/products'
+import { useMemo, useState } from 'react'
+
+export default function Shop(){
+ const [params,setParams]=useSearchParams(); const [search,setSearch]=useState(''); const [sort,setSort]=useState('featured'); const category=params.get('category')||'All'
+ const filtered=useMemo(()=>{let list=products.filter(p=>(category==='All'||p.category===category)&&p.name.toLowerCase().includes(search.toLowerCase())); if(sort==='low')list.sort((a,b)=>a.price-b.price); if(sort==='high')list.sort((a,b)=>b.price-a.price); return list},[category,search,sort])
+ return <section className="section shop-page"><div className="page-intro"><span className="eyebrow">OUR CATALOG</span><h1>Shop technology.</h1><p>Quality computers, peripherals and office essentials.</p></div><div className="shop-toolbar"><div className="category-pills">{categories.map(c=><button className={category===c?'active':''} key={c} onClick={()=>setParams(c==='All'?{}:{category:c})}>{c}</button>)}</div><div className="filters"><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search products..."/><select value={sort} onChange={e=>setSort(e.target.value)}><option value="featured">Featured</option><option value="low">Price: Low to high</option><option value="high">Price: High to low</option></select></div></div><p className="result-count">{filtered.length} products</p><div className="product-grid">{filtered.map(p=><Link className="product-card" to={`/product/${p.id}`} key={p.id}><div className="product-image">▱</div><span className="tag">{p.badge}</span><h3>{p.name}</h3><p>★ {p.rating} · {p.stock} in stock</p><strong>{formatPrice(p.price)}</strong>{p.oldPrice&&<del>{formatPrice(p.oldPrice)}</del>}</Link>)}</div></section>
+}
