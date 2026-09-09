@@ -1,42 +1,48 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { products, categories, formatPrice } from '../data/products'
+import { formatPrice } from '../data/products'
+import { useProducts } from '../context/ProductContext'
 import ProductCard from '../components/ProductCard'
 
-const MAX_PRICE = Math.max(...products.map((product) => product.price))
 const PRICE_STEP = 10000
 
 export default function Shop() {
+  const { products, categories } = useProducts()
   const [params, setParams] = useSearchParams()
   const [search, setSearch] = useState(params.get('search') || '')
   const [sort, setSort] = useState('featured')
-  const [maxPrice, setMaxPrice] = useState(MAX_PRICE)
+  const maxProductPrice = Math.max(10000, ...products.map((product) => Number(product.price) || 0))
+  const [maxPrice, setMaxPrice] = useState(maxProductPrice)
   const category = params.get('category') || 'All'
+
+  useEffect(() => {
+    setMaxPrice(maxProductPrice)
+  }, [maxProductPrice])
 
   const categoryCounts = useMemo(() => categories.reduce((counts, name) => {
     counts[name] = name === 'All' ? products.length : products.filter((product) => product.category === name).length
     return counts
-  }, {}), [])
+  }, {}), [categories, products])
 
   const filtered = useMemo(() => {
     const term = search.trim().toLowerCase()
     const list = products.filter((product) => {
       const matchesCategory = category === 'All' || product.category === category
-      const searchable = `${product.name} ${product.category} ${product.description} ${product.specs.join(' ')}`.toLowerCase()
-      return matchesCategory && searchable.includes(term) && product.price <= maxPrice && product.stock > 0
+      const searchable = `${product.name} ${product.category} ${product.description} ${(product.specs || []).join(' ')}`.toLowerCase()
+      return matchesCategory && searchable.includes(term) && Number(product.price) <= maxPrice && Number(product.stock) > 0
     })
 
     if (sort === 'low') list.sort((a, b) => a.price - b.price)
     if (sort === 'high') list.sort((a, b) => b.price - a.price)
     if (sort === 'rating') list.sort((a, b) => b.rating - a.rating)
-    if (sort === 'discount') list.sort((a, b) => (b.oldPrice - b.price) - (a.oldPrice - a.price))
+    if (sort === 'discount') list.sort((a, b) => ((b.oldPrice || 0) - b.price) - ((a.oldPrice || 0) - a.price))
     return list
-  }, [category, search, sort, maxPrice])
+  }, [category, search, sort, maxPrice, products])
 
   const chooseCategory = (value) => setParams(value === 'All' ? {} : { category: value, ...(search ? { search } : {}) })
   const clearFilters = () => {
     setSearch('')
-    setMaxPrice(MAX_PRICE)
+    setMaxPrice(maxProductPrice)
     setSort('featured')
     setParams({})
   }
@@ -49,7 +55,7 @@ export default function Shop() {
           <h1>{category === 'All' ? 'Shop all products' : category}</h1>
           <p>Quality technology for work, study, business and everyday life.</p>
         </div>
-        <div className="catalog-count">{filtered.length} of {categoryCounts[category]} products</div>
+        <div className="catalog-count">{filtered.length} of {categoryCounts[category] || 0} products</div>
       </div>
 
       <div className="catalog-body">
@@ -62,9 +68,9 @@ export default function Shop() {
           ))}
 
           <div className="filter-title price-title">Maximum price</div>
-          <input type="range" min="10000" max={MAX_PRICE} step={PRICE_STEP} value={maxPrice} onChange={(event) => setMaxPrice(Number(event.target.value))} aria-label="Maximum price" />
+          <input type="range" min="10000" max={maxProductPrice} step={PRICE_STEP} value={Math.min(maxPrice, maxProductPrice)} onChange={(event) => setMaxPrice(Number(event.target.value))} aria-label="Maximum price" />
           <div className="price-range"><span>₦10k</span><b>{formatPrice(maxPrice)}</b></div>
-          {(search || category !== 'All' || maxPrice !== MAX_PRICE || sort !== 'featured') && (
+          {(search || category !== 'All' || maxPrice !== maxProductPrice || sort !== 'featured') && (
             <button type="button" onClick={clearFilters} className="selected">Clear all filters <span>×</span></button>
           )}
         </aside>
