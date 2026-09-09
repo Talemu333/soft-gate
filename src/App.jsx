@@ -13,6 +13,7 @@ import Wishlist from './pages/Wishlist'
 import About from './pages/About'
 import Contact from './pages/Contact'
 import './account.css'
+import './auth.css'
 
 export default function App() {
   return (
