@@ -1,12 +1,14 @@
 import { Link, useParams } from 'react-router-dom'
 import { useState } from 'react'
-import { products, formatPrice } from '../data/products'
+import { formatPrice } from '../data/products'
+import { useProducts } from '../context/ProductContext'
 import ProductCard from '../components/ProductCard'
 import { useCart } from '../context/CartContext'
 import { useWishlist } from '../context/WishlistContext'
 
 export default function ProductDetails() {
   const { id } = useParams()
+  const { products } = useProducts()
   const product = products.find((item) => item.id === Number(id))
   const [qty, setQty] = useState(1)
   const [added, setAdded] = useState(false)
@@ -20,7 +22,9 @@ export default function ProductDetails() {
   const discount = product.oldPrice ? Math.round((1 - product.price / product.oldPrice) * 100) : 0
   const related = products.filter((item) => item.category === product.category && item.id !== product.id).slice(0, 4)
   const saved = isWishlisted(product.id)
+  const outOfStock = Number(product.stock) <= 0
   const add = () => {
+    if (outOfStock) return
     addToCart(product, qty)
     setAdded(true)
     window.setTimeout(() => setAdded(false), 2200)
@@ -45,17 +49,17 @@ export default function ProductDetails() {
           <div className="detail-rating"><span>★★★★★</span> <b>{product.rating}</b> <span>({product.reviews} reviews)</span></div>
           <div className="detail-price"><strong>{formatPrice(product.price)}</strong>{product.oldPrice && <del>{formatPrice(product.oldPrice)}</del>}{discount > 0 && <em>{discount}% OFF</em>}</div>
           <p>{product.description}</p>
-          <div className="stock-line">✓ In stock <span>•</span> {product.stock <= 6 ? `Only ${product.stock} left` : 'Ready for delivery'}</div>
+          <div className={`stock-line ${outOfStock ? 'low-stock' : ''}`}>{outOfStock ? '✕ Out of stock' : <>✓ In stock <span>•</span> {product.stock <= 6 ? `Only ${product.stock} left` : 'Ready for delivery'}</>}</div>
 
-          <div className="spec-box"><h3>Key features</h3><ul>{product.specs.map((spec) => <li key={spec}>✓ {spec}</li>)}</ul></div>
+          <div className="spec-box"><h3>Key features</h3><ul>{(product.specs || []).map((spec) => <li key={spec}>✓ {spec}</li>)}</ul></div>
 
           <div className="purchase-row">
             <div className="quantity" aria-label="Quantity">
-              <button type="button" onClick={() => setQty(Math.max(1, qty - 1))} aria-label="Decrease quantity">−</button>
+              <button type="button" disabled={outOfStock} onClick={() => setQty(Math.max(1, qty - 1))} aria-label="Decrease quantity">−</button>
               <b>{qty}</b>
-              <button type="button" onClick={() => setQty(Math.min(product.stock, qty + 1))} aria-label="Increase quantity">+</button>
+              <button type="button" disabled={outOfStock} onClick={() => setQty(Math.min(product.stock, qty + 1))} aria-label="Increase quantity">+</button>
             </div>
-            <button className="primary-button buy-button" type="button" onClick={add}>{added ? '✓ Added to cart' : 'Add to cart'}</button>
+            <button className="primary-button buy-button" type="button" onClick={add} disabled={outOfStock}>{outOfStock ? 'Out of stock' : added ? '✓ Added to cart' : 'Add to cart'}</button>
             <button className={`wishlist-large ${saved ? 'active' : ''}`} type="button" onClick={() => toggleWishlist(product)} aria-label={saved ? 'Remove from wishlist' : 'Save to wishlist'}>{saved ? '♥' : '♡'}</button>
           </div>
 
