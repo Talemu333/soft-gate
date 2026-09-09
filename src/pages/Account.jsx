@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 import { useMemo } from 'react'
 import { useWishlist } from '../context/WishlistContext'
+import { useOrders } from '../context/OrderContext'
 
 const demoOrders = [
   { id: 'SG-1048', date: '08 Sep 2026', status: 'Processing', total: 685000 },
@@ -9,9 +10,10 @@ const demoOrders = [
 
 export default function Account() {
   const { count: wishlistCount } = useWishlist()
+  const { getCustomerOrders } = useOrders()
   const customer = useMemo(() => { try { return JSON.parse(localStorage.getItem('softgate-customer') || 'null') } catch { return null } }, [])
-  const savedOrders = useMemo(() => { try { return JSON.parse(localStorage.getItem('softgate-orders') || '[]') } catch { return [] } }, [])
-  const orders = savedOrders.length ? savedOrders : demoOrders
+  const liveOrders = getCustomerOrders(customer?.email)
+  const orders = liveOrders.length ? liveOrders : demoOrders
   const name = customer?.name || 'Soft-Gate Customer'
   const email = customer?.email || 'customer@example.com'
 
