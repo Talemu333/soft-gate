@@ -1,14 +1,16 @@
 import { Link } from 'react-router-dom'
-import { products, formatPrice } from '../data/products'
+import { formatPrice } from '../data/products'
+import { useProducts } from '../context/ProductContext'
 
 const readOrders = () => {
   try { return JSON.parse(localStorage.getItem('softgate-orders') || '[]') } catch { return [] }
 }
 
 export default function AdminDashboard() {
+  const { products } = useProducts()
   const orders = readOrders()
   const revenue = orders.reduce((sum, order) => sum + Number(order.total || 0), 0)
-  const lowStock = products.filter((product) => product.stock <= 7)
+  const lowStock = products.filter((product) => Number(product.stock) <= 7)
 
   return <main className="admin-page">
     <div className="admin-shell">
