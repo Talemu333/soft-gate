@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { CartProvider } from './context/CartContext'
 import { WishlistProvider } from './context/WishlistContext'
 import { ProductProvider } from './context/ProductContext'
+import { OrderProvider } from './context/OrderContext'
 import Layout from './components/Layout'
 import Home from './pages/Home'
 import Shop from './pages/Shop'
@@ -25,29 +26,31 @@ export default function App() {
   return (
     <BrowserRouter>
       <ProductProvider>
-        <CartProvider>
-          <WishlistProvider>
-            <Layout>
-              <Routes>
-                <Route path="/" element={<Home />} />
-                <Route path="/shop" element={<Shop />} />
-                <Route path="/product/:id" element={<ProductDetails />} />
-                <Route path="/cart" element={<Cart />} />
-                <Route path="/checkout" element={<Checkout />} />
-                <Route path="/login" element={<Login />} />
-                <Route path="/account" element={<Account />} />
-                <Route path="/wishlist" element={<Wishlist />} />
-                <Route path="/about" element={<About />} />
-                <Route path="/contact" element={<Contact />} />
-                <Route path="/admin" element={<AdminDashboard />} />
-                <Route path="/admin/products" element={<AdminProducts />} />
-                <Route path="/admin/orders" element={<AdminOrders />} />
-                <Route path="/admin/customers" element={<AdminCustomers />} />
-                <Route path="*" element={<Home />} />
-              </Routes>
-            </Layout>
-          </WishlistProvider>
-        </CartProvider>
+        <OrderProvider>
+          <CartProvider>
+            <WishlistProvider>
+              <Layout>
+                <Routes>
+                  <Route path="/" element={<Home />} />
+                  <Route path="/shop" element={<Shop />} />
+                  <Route path="/product/:id" element={<ProductDetails />} />
+                  <Route path="/cart" element={<Cart />} />
+                  <Route path="/checkout" element={<Checkout />} />
+                  <Route path="/login" element={<Login />} />
+                  <Route path="/account" element={<Account />} />
+                  <Route path="/wishlist" element={<Wishlist />} />
+                  <Route path="/about" element={<About />} />
+                  <Route path="/contact" element={<Contact />} />
+                  <Route path="/admin" element={<AdminDashboard />} />
+                  <Route path="/admin/products" element={<AdminProducts />} />
+                  <Route path="/admin/orders" element={<AdminOrders />} />
+                  <Route path="/admin/customers" element={<AdminCustomers />} />
+                  <Route path="*" element={<Home />} />
+                </Routes>
+              </Layout>
+            </WishlistProvider>
+          </CartProvider>
+        </OrderProvider>
       </ProductProvider>
     </BrowserRouter>
   )
