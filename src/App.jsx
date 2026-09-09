@@ -12,6 +12,7 @@ import Account from './pages/Account'
 import Wishlist from './pages/Wishlist'
 import About from './pages/About'
 import Contact from './pages/Contact'
+import './account.css'
 
 export default function App() {
   return (
