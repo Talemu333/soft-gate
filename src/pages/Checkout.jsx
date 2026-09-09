@@ -1,11 +1,12 @@
-import { Link, useNavigate } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import { useState } from 'react'
 import { formatPrice } from '../data/products'
 import { useCart } from '../context/CartContext'
+import { useOrders } from '../context/OrderContext'
 
 export default function Checkout() {
   const { items, subtotal, clearCart } = useCart()
-  const navigate = useNavigate()
+  const { createOrder } = useOrders()
   const [payment, setPayment] = useState('transfer')
   const [placed, setPlaced] = useState(false)
   const [orderId, setOrderId] = useState('')
@@ -18,9 +19,21 @@ export default function Checkout() {
   const submit = (event) => {
     event.preventDefault()
     const id = `SG-${Date.now().toString().slice(-6)}`
-    const order = { id, date: new Date().toLocaleDateString('en-NG', { day: '2-digit', month: 'short', year: 'numeric' }), status: 'Processing', total, payment, items, customer: form }
-    const existing = JSON.parse(localStorage.getItem('softgate-orders') || '[]')
-    localStorage.setItem('softgate-orders', JSON.stringify([order, ...existing]))
+    const order = {
+      id,
+      date: new Date().toLocaleDateString('en-NG', { day: '2-digit', month: 'short', year: 'numeric' }),
+      createdAt: new Date().toISOString(),
+      status: 'Processing',
+      subtotal,
+      delivery,
+      total,
+      payment,
+      items: items.map(({ id: productId, name, price, quantity, image }) => ({ productId, name, price, quantity, image })),
+      customer: form,
+    }
+    createOrder(order)
+    localStorage.setItem('softgate-customer', JSON.stringify({ name: form.name, email: form.email, phone: form.phone }))
+    window.dispatchEvent(new Event('softgate-customer-updated'))
     setOrderId(id)
     setPlaced(true)
     clearCart()
