@@ -16,6 +16,7 @@ export default function Login() {
     setMessage('')
     setError('')
     setSubmitting(true)
+
     try {
       const data = register
         ? await api.register({ name: form.name, email: form.email, password: form.password })
@@ -24,8 +25,9 @@ export default function Login() {
       localStorage.setItem('softgate-token', data.token)
       localStorage.setItem('softgate-user', JSON.stringify(data.user))
       window.dispatchEvent(new Event('softgate-auth-updated'))
+
       setMessage(register ? 'Account created successfully.' : 'You are now signed in.')
-      setTimeout(() => navigate('/account'), 500)
+      navigate('/account', { replace: true })
     } catch (requestError) {
       setError(requestError.message || 'Unable to complete authentication.')
     } finally {
