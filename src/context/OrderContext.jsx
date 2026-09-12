@@ -1,66 +1,60 @@
-import { createContext, useContext, useEffect, useMemo, useState } from 'react'
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
+import { api } from '../lib/api'
 
 const OrderContext = createContext(null)
 
-const readOrders = () => {
-  try {
-    const parsed = JSON.parse(localStorage.getItem('softgate-orders') || '[]')
-    return Array.isArray(parsed) ? parsed : []
-  } catch {
-    return []
-  }
-}
-
-const readCustomer = () => {
-  try {
-    return JSON.parse(localStorage.getItem('softgate-customer') || 'null')
-  } catch {
-    return null
-  }
-}
-
 export function OrderProvider({ children }) {
-  const [orders, setOrders] = useState(readOrders)
+  const [orders, setOrders] = useState([])
 
-  useEffect(() => {
-    const syncOrders = () => setOrders(readOrders())
-    const syncCustomer = () => setOrders((current) => [...current])
-
-    window.addEventListener('storage', syncOrders)
-    window.addEventListener('softgate-orders-updated', syncOrders)
-    window.addEventListener('softgate-customer-updated', syncCustomer)
-
-    return () => {
-      window.removeEventListener('storage', syncOrders)
-      window.removeEventListener('softgate-orders-updated', syncOrders)
-      window.removeEventListener('softgate-customer-updated', syncCustomer)
+  const refreshOrders = useCallback(async () => {
+    if (!localStorage.getItem('softgate-token')) {
+      setOrders([])
+      return []
+    }
+    try {
+      const data = await api.getMyOrders()
+      const next = data.orders || []
+      setOrders(next)
+      return next
+    } catch {
+      setOrders([])
+      return []
     }
   }, [])
 
-  const replaceOrders = (next) => {
-    setOrders(next)
-    localStorage.setItem('softgate-orders', JSON.stringify(next))
-    window.dispatchEvent(new Event('softgate-orders-updated'))
-  }
+  useEffect(() => {
+    refreshOrders()
+    const sync = () => refreshOrders()
+    window.addEventListener('softgate-auth-updated', sync)
+    return () => window.removeEventListener('softgate-auth-updated', sync)
+  }, [refreshOrders])
 
-  const createOrder = (order) => {
-    const next = [order, ...orders]
-    replaceOrders(next)
-    return order
-  }
+  const createOrder = useCallback(async (order) => {
+    const data = await api.createOrder({
+      customer: order.customer,
+      items: (order.items || []).map((item) => ({
+        productId: item.productId ?? item.id,
+        quantity: Number(item.quantity || item.qty || 1),
+      })),
+      payment: order.payment || 'transfer',
+    })
+    const created = data.order
+    const next = await refreshOrders()
+    return next.find((item) => item.id === created.orderNumber) || created
+  }, [refreshOrders])
 
-  const updateOrderStatus = (id, status) => {
-    replaceOrders(orders.map((order) => order.id === id ? { ...order, status } : order))
-  }
+  const updateOrderStatus = useCallback(async (id, status) => {
+    await api.updateOrderStatus(id, status)
+    setOrders((current) => current.map((order) => order.id === id ? { ...order, status } : order))
+  }, [])
 
-  const getCustomerOrders = (email) => {
+  const getCustomerOrders = useCallback((email) => {
     if (!email) return []
     return orders.filter((order) => order.customer?.email?.toLowerCase() === email.toLowerCase())
-  }
+  }, [orders])
 
   const customers = useMemo(() => {
     const map = new Map()
-
     orders.forEach((order) => {
       const customer = order.customer || {}
       const key = customer.email?.toLowerCase() || customer.phone || customer.name || order.id
@@ -77,24 +71,10 @@ export function OrderProvider({ children }) {
       current.lastOrder = order.date || current.lastOrder
       map.set(key, current)
     })
-
-    const saved = readCustomer()
-    if (saved?.email) {
-      const key = saved.email.toLowerCase()
-      if (!map.has(key)) {
-        map.set(key, {
-          name: saved.name || 'Customer',
-          email: saved.email,
-          phone: saved.phone || '—',
-          orders: 0,
-          spend: 0,
-          lastOrder: 'No orders yet',
-        })
-      }
-    }
-
     return [...map.values()].sort((a, b) => b.spend - a.spend)
   }, [orders])
+
+  const replaceOrders = useCallback((next) => setOrders(Array.isArray(next) ? next : []), [])
 
   const value = useMemo(() => ({
     orders,
@@ -103,7 +83,8 @@ export function OrderProvider({ children }) {
     updateOrderStatus,
     getCustomerOrders,
     replaceOrders,
-  }), [orders, customers])
+    refreshOrders,
+  }), [orders, customers, createOrder, updateOrderStatus, getCustomerOrders, replaceOrders, refreshOrders])
 
   return <OrderContext.Provider value={value}>{children}</OrderContext.Provider>
 }
