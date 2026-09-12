@@ -1,4 +1,4 @@
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:4000/api'
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000/api'
 
 async function request(path, options = {}) {
   const token = localStorage.getItem('softgate-token')
@@ -14,18 +14,13 @@ async function request(path, options = {}) {
 }
 
 export const api = {
-  getProducts: (params = {}) => {
-    const query = new URLSearchParams()
-    if (params.category && params.category !== 'All') query.set('category', params.category)
-    if (params.search) query.set('search', params.search)
-    return request(`/products${query.toString() ? `?${query}` : ''}`)
-  },
+  getProducts: (params = {}) => { const query = new URLSearchParams(); if (params.category && params.category !== 'All') query.set('category', params.category); if (params.search) query.set('search', params.search); return request(`/products${query.toString() ? `?${query}` : ''}`) },
   getProduct: (id) => request(`/products/${id}`),
   login: (credentials) => request('/auth/login', { method: 'POST', body: JSON.stringify(credentials) }),
   register: (payload) => request('/auth/register', { method: 'POST', body: JSON.stringify(payload) }),
   me: () => request('/auth/me'),
   createOrder: (payload) => request('/orders', { method: 'POST', body: JSON.stringify(payload) }),
-  getMyOrders: () => request('/orders/my'),
+  getMyOrders: () => request('/orders/mine'),
   getWishlist: () => request('/wishlist'),
   toggleWishlist: (productId) => request(`/wishlist/${productId}`, { method: 'POST' }),
   removeWishlist: (productId) => request(`/wishlist/${productId}`, { method: 'DELETE' }),
