@@ -27,6 +27,7 @@ CREATE TABLE IF NOT EXISTS products (
   specs JSON NULL,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY uq_products_name (name),
   INDEX idx_products_category (category),
   INDEX idx_products_stock (stock)
 ) ENGINE=InnoDB;
