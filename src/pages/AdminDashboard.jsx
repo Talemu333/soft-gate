@@ -2,23 +2,19 @@ import { Link } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import { formatPrice } from '../data/products'
 import { useProducts } from '../context/ProductContext'
-import { useOrders } from '../context/OrderContext'
 import { api } from '../lib/api'
 
 export default function AdminDashboard() {
   const { products } = useProducts()
-  const { orders, refreshOrders } = useOrders()
+  const [orders, setOrders] = useState([])
   const [stats, setStats] = useState(null)
   const [error, setError] = useState('')
 
   useEffect(() => {
     Promise.all([api.adminDashboard(), api.adminOrders()])
-      .then(([dashboard, orderData]) => {
-        setStats(dashboard)
-        refreshOrders()
-      })
+      .then(([dashboard, orderData]) => { setStats(dashboard); setOrders(orderData.orders || []) })
       .catch((err) => setError(err.message || 'Unable to load admin data.'))
-  }, [refreshOrders])
+  }, [])
 
   const revenue = stats?.revenue ?? orders.reduce((sum, order) => sum + Number(order.total || 0), 0)
   const lowStock = products.filter((product) => Number(product.stock) <= 7)
