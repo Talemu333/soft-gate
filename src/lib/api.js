@@ -7,8 +7,9 @@ async function request(path, options = {}) {
   const response = await fetch(`${API_BASE}${path}`, { ...options, headers, cache: 'no-store' })
   const data = await response.json().catch(() => ({}))
   if (!response.ok) {
-    if (response.status === 401) localStorage.removeItem('softgate-token')
-    throw new Error(data.message || 'Request failed.')
+    const error = new Error(data.message || 'Request failed.')
+    error.status = response.status
+    throw error
   }
   return data
 }
