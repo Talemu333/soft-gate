@@ -15,13 +15,34 @@ export default function Account() {
     let active = true
     const load = async () => {
       try {
-        if (!localStorage.getItem('softgate-token')) { navigate('/login'); return }
+        const token = localStorage.getItem('softgate-token')
+        if (!token) {
+          navigate('/login', { replace: true })
+          return
+        }
+
         const data = await api.me()
-        if (active) setCustomer(data.user)
+        if (!active) return
+        setCustomer(data.user)
+        localStorage.setItem('softgate-user', JSON.stringify(data.user))
         await refreshOrders()
-      } catch {
-        localStorage.removeItem('softgate-token')
-        if (active) navigate('/login')
+      } catch (error) {
+        if (!active) return
+        if (error?.status === 401) {
+          localStorage.removeItem('softgate-token')
+          localStorage.removeItem('softgate-user')
+          navigate('/login', { replace: true })
+          return
+        }
+
+        const storedUser = localStorage.getItem('softgate-user')
+        if (storedUser) {
+          try {
+            setCustomer(JSON.parse(storedUser))
+          } catch {
+            // Ignore invalid cached user data.
+          }
+        }
       } finally {
         if (active) setLoading(false)
       }
