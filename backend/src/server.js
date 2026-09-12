@@ -13,9 +13,14 @@ import adminRouter from './routes/admin.js'
 const app = express()
 const port = Number(process.env.PORT || 5000)
 
+app.disable('etag')
 app.use(helmet())
 app.use(cors({ origin: process.env.CLIENT_ORIGIN?.split(',').map((v) => v.trim()) || true }))
 app.use(express.json({ limit: '1mb' }))
+app.use((req, res, next) => {
+  res.setHeader('Cache-Control', 'no-store')
+  next()
+})
 
 app.get('/api/health', async (_req, res) => {
   try {
