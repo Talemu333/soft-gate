@@ -18,7 +18,7 @@ export const api = {
   getProduct: (id) => request(`/products/${id}`),
   login: (credentials) => request('/auth/login', { method: 'POST', body: JSON.stringify(credentials) }),
   register: (payload) => request('/auth/register', { method: 'POST', body: JSON.stringify(payload) }),
-  me: () => request('/auth/me'),
+  me: () => request(`/auth/me?_=${Date.now()}`),
   createOrder: (payload) => request('/orders', { method: 'POST', body: JSON.stringify(payload) }),
   getMyOrders: () => request('/orders/mine'),
   getWishlist: () => request('/wishlist'),
