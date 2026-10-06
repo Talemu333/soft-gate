@@ -78,14 +78,19 @@ router.patch('/orders/:id/status', async (req, res, next) => {
 
       if (nextStatus === 'Cancelled') {
         const items = await client.query(
-          'SELECT product_id, quantity FROM order_items WHERE order_id=$1 FOR UPDATE',
+          'SELECT product_id, SUM(quantity)::INTEGER AS quantity FROM order_items WHERE order_id=$1 GROUP BY product_id ORDER BY product_id FOR UPDATE',
           [order.id],
         )
         for (const item of items.rows) {
-          await client.query(
-            'UPDATE products SET stock = stock + $1, updated_at=NOW() WHERE id=$2',
+          const restored = await client.query(
+            'UPDATE products SET stock = stock + $1, updated_at=NOW() WHERE id=$2 RETURNING id',
             [item.quantity, item.product_id],
           )
+          if (!restored.rows[0]) {
+            const error = new Error('A product in this order is no longer available for stock restoration.')
+            error.statusCode = 409
+            throw error
+          }
         }
       }
 
