@@ -5,6 +5,8 @@ import { useWishlist } from '../context/WishlistContext'
 import { useOrders } from '../context/OrderContext'
 import { useAuth } from '../context/AuthContext'
 
+const formatPrice = (value) => '₦' + Number(value || 0).toLocaleString('en-NG')
+
 export default function Account() {
   const { count: wishlistCount } = useWishlist()
   const { orders } = useOrders()
