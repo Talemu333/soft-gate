@@ -38,6 +38,7 @@ export default function Login() {
         <label>Email address<input type="email" value={form.email} onChange={(e) => setForm((current) => ({ ...current, email: e.target.value }))} required autoComplete="email" placeholder="you@example.com" /></label>
         <label>Password<div className="password-field"><input type={showPassword ? 'text' : 'password'} value={form.password} onChange={(e) => setForm((current) => ({ ...current, password: e.target.value }))} required minLength="8" maxLength="72" autoComplete={registerMode ? 'new-password' : 'current-password'} placeholder="••••••••" /><button type="button" onClick={() => setShowPassword((value) => !value)}>{showPassword ? 'Hide' : 'Show'}</button></div></label>
         <button className="primary-button full" type="submit">{registerMode ? 'Create account' : 'Sign in'} →</button>
+        {!registerMode && <Link to="/forgot-password" className="text-link auth-forgot-link">Forgot your password?</Link>}
         {message && <p className="auth-message">{message}</p>}
         {error && <p className="auth-message" role="alert">{error}</p>}
       </form>
