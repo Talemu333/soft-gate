@@ -4,6 +4,27 @@ import { optionalAuth, requireAuth, requireAdmin } from '../middleware/auth.js'
 
 const router = Router()
 
+function validateProductPayload(p) {
+  const name = String(p.name || '').trim()
+  const category = String(p.category || '').trim()
+  const price = Number(p.price)
+  const oldPrice = p.oldPrice === '' || p.oldPrice == null ? null : Number(p.oldPrice)
+  const stock = Number(p.stock)
+  const rating = Number(p.rating ?? 5)
+  const reviews = Number(p.reviews ?? 0)
+
+  if (!name || !category || !Number.isFinite(price) || price < 0) {
+    return 'Name, category and a valid non-negative price are required.'
+  }
+  if (oldPrice !== null && (!Number.isFinite(oldPrice) || oldPrice < 0)) {
+    return 'Old price must be a valid non-negative number.'
+  }
+  if (!Number.isInteger(stock) || stock < 0) return 'Stock must be a non-negative whole number.'
+  if (!Number.isFinite(rating) || rating < 0 || rating > 5) return 'Rating must be between 0 and 5.'
+  if (!Number.isInteger(reviews) || reviews < 0) return 'Reviews must be a non-negative whole number.'
+  return null
+}
+
 function serializeProduct(row) {
   return {
     id: Number(row.id), name: row.name, category: row.category, price: Number(row.price),
@@ -45,7 +66,8 @@ router.get('/:id', async (req, res, next) => {
 router.post('/', requireAuth, requireAdmin, async (req, res, next) => {
   try {
     const p = req.body
-    if (!p.name?.trim() || !p.category?.trim() || Number.isNaN(Number(p.price))) return res.status(400).json({ message: 'Name, category and price are required.' })
+    const validationError = validateProductPayload(p)
+    if (validationError) return res.status(400).json({ message: validationError })
     const rows = await query(
       'INSERT INTO products (name, category, price, old_price, rating, reviews, stock, badge, image, description, specs) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *',
       [p.name.trim(), p.category.trim(), Number(p.price), p.oldPrice ?? null, Number(p.rating || 5), Number(p.reviews || 0), Number(p.stock || 0), p.badge || 'New', p.image || '', p.description || '', JSON.stringify(p.specs || [])],
@@ -57,6 +79,8 @@ router.post('/', requireAuth, requireAdmin, async (req, res, next) => {
 router.put('/:id', requireAuth, requireAdmin, async (req, res, next) => {
   try {
     const p = req.body
+    const validationError = validateProductPayload(p)
+    if (validationError) return res.status(400).json({ message: validationError })
     const rows = await query(
       'UPDATE products SET name=$1, category=$2, price=$3, old_price=$4, rating=$5, reviews=$6, stock=$7, badge=$8, image=$9, description=$10, specs=$11, active=$12, updated_at=NOW() WHERE id=$13 RETURNING *',
       [p.name?.trim(), p.category?.trim(), Number(p.price), p.oldPrice ?? null, Number(p.rating ?? 0), Number(p.reviews ?? 0), Number(p.stock ?? 0), p.badge || '', p.image || '', p.description || '', JSON.stringify(p.specs || []), p.active === false ? false : true, req.params.id],
