@@ -1,21 +1,16 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react'
-import { api, getToken, setToken } from '../lib/api'
+import { api } from '../lib/api'
 
 const AuthContext = createContext(null)
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
-  const [loading, setLoading] = useState(Boolean(getToken()))
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    if (!getToken()) {
-      setLoading(false)
-      return
-    }
-
     api('/api/auth/me')
       .then(({ user: current }) => setUser(current))
-      .catch(() => setToken(null))
+      .catch(() => setUser(null))
       .finally(() => setLoading(false))
   }, [])
 
@@ -24,7 +19,6 @@ export function AuthProvider({ children }) {
       method: 'POST',
       body: JSON.stringify({ email, password }),
     })
-    setToken(data.token)
     setUser(data.user)
     return data.user
   }
@@ -34,17 +28,22 @@ export function AuthProvider({ children }) {
       method: 'POST',
       body: JSON.stringify(payload),
     })
-    setToken(data.token)
     setUser(data.user)
     return data.user
   }
 
-  const logout = () => {
-    setToken(null)
-    setUser(null)
+  const logout = async () => {
+    try { await api('/api/auth/logout', { method: 'POST' }) } finally { setUser(null) }
   }
 
-  const value = useMemo(() => ({ user, loading, login, register, logout, isAdmin: user?.role === 'admin' }), [user, loading])
+  const changePassword = async (currentPassword, newPassword) => {
+    return api('/api/auth/password', {
+      method: 'PATCH',
+      body: JSON.stringify({ currentPassword, newPassword }),
+    })
+  }
+
+  const value = useMemo(() => ({ user, loading, login, register, logout, changePassword, isAdmin: user?.role === 'admin' }), [user, loading])
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }
 
