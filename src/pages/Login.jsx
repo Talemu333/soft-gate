@@ -36,13 +36,13 @@ export default function Login() {
         {registerMode && <label>Full name<input value={form.name} onChange={(e) => setForm((current) => ({ ...current, name: e.target.value }))} required autoComplete="name" placeholder="Your full name" /></label>}
         {registerMode && <label>Phone number<input value={form.phone} onChange={(e) => setForm((current) => ({ ...current, phone: e.target.value }))} autoComplete="tel" placeholder="0800 000 0000" /></label>}
         <label>Email address<input type="email" value={form.email} onChange={(e) => setForm((current) => ({ ...current, email: e.target.value }))} required autoComplete="email" placeholder="you@example.com" /></label>
-        <label>Password<div className="password-field"><input type={showPassword ? 'text' : 'password'} value={form.password} onChange={(e) => setForm((current) => ({ ...current, password: e.target.value }))} required minLength="6" autoComplete={registerMode ? 'new-password' : 'current-password'} placeholder="••••••••" /><button type="button" onClick={() => setShowPassword((value) => !value)}>{showPassword ? 'Hide' : 'Show'}</button></div></label>
+        <label>Password<div className="password-field"><input type={showPassword ? 'text' : 'password'} value={form.password} onChange={(e) => setForm((current) => ({ ...current, password: e.target.value }))} required minLength="8" maxLength="72" autoComplete={registerMode ? 'new-password' : 'current-password'} placeholder="••••••••" /><button type="button" onClick={() => setShowPassword((value) => !value)}>{showPassword ? 'Hide' : 'Show'}</button></div></label>
         <button className="primary-button full" type="submit">{registerMode ? 'Create account' : 'Sign in'} →</button>
         {message && <p className="auth-message">{message}</p>}
         {error && <p className="auth-message" role="alert">{error}</p>}
       </form>
       <div className="auth-switch">{registerMode ? 'Already have an account?' : 'New to Soft-Gate?'} <button type="button" onClick={() => { setRegisterMode((value) => !value); setMessage(''); setError('') }}>{registerMode ? 'Sign in' : 'Create an account'}</button></div>
-      <p className="auth-demo-note">Your account is now stored securely in the Soft-Gate backend. Passwords are hashed and never returned to the frontend.</p>
+      <p className="auth-demo-note">Your session is protected by a secure, HttpOnly browser cookie. Passwords are hashed and never returned to the frontend.</p>
     </div>
   </main>
 }
