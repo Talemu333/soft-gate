@@ -127,7 +127,7 @@ router.patch('/orders/:id/payment-status', async (req, res, next) => {
 
 router.get('/customers', async (req, res, next) => {
   try {
-    const rows = await query("SELECT u.id,u.name,u.email,u.phone,COUNT(o.id)::INTEGER AS orders,COALESCE(SUM(o.total),0) AS spend,MAX(o.created_at) AS last_order FROM users u LEFT JOIN orders o ON o.user_id=u.id WHERE u.role='customer' GROUP BY u.id,u.name,u.email,u.phone ORDER BY spend DESC, MAX(u.created_at) DESC")
+    const rows = await query("SELECT u.id,u.name,u.email,u.phone,COUNT(o.id)::INTEGER AS orders,COALESCE(SUM(o.total) FILTER (WHERE o.status <> 'Cancelled'),0) AS spend,MAX(o.created_at) FILTER (WHERE o.status <> 'Cancelled') AS last_order FROM users u LEFT JOIN orders o ON o.user_id=u.id WHERE u.role='customer' GROUP BY u.id,u.name,u.email,u.phone ORDER BY spend DESC, MAX(u.created_at) DESC")
     res.json({ customers: rows.map((row) => ({
       name: row.name, email: row.email, phone: row.phone || '—', orders: Number(row.orders),
       spend: Number(row.spend),
