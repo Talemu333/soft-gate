@@ -1,7 +1,7 @@
 import { Router } from 'express'
 import bcrypt from 'bcryptjs'
 import { createHash, randomBytes } from 'node:crypto'
-import { query } from '../db.js'
+import { query, transaction } from '../db.js'
 import { clearAuthCookie, requireAuth, setAuthCookie, signToken } from '../middleware/auth.js'
 import { sendPasswordResetEmail } from '../services/email.js'
 
@@ -169,16 +169,11 @@ router.post('/reset-password', async (req, res, next) => {
 
     const passwordHash = await bcrypt.hash(newPassword, 12)
 
-    await query('BEGIN')
-    try {
-      await query('UPDATE users SET password_hash = $1, updated_at = NOW() WHERE id = $2', [passwordHash, resetRecord.user_id])
-      await query('UPDATE password_reset_tokens SET used_at = NOW() WHERE id = $1', [resetRecord.id])
-      await query('DELETE FROM password_reset_tokens WHERE user_id = $1 AND id <> $2', [resetRecord.user_id, resetRecord.id])
-      await query('COMMIT')
-    } catch (error) {
-      await query('ROLLBACK')
-      throw error
-    }
+    await transaction(async (client) => {
+      await client.query('UPDATE users SET password_hash = $1, updated_at = NOW() WHERE id = $2', [passwordHash, resetRecord.user_id])
+      await client.query('UPDATE password_reset_tokens SET used_at = NOW() WHERE id = $1', [resetRecord.id])
+      await client.query('DELETE FROM password_reset_tokens WHERE user_id = $1 AND id <> $2', [resetRecord.user_id, resetRecord.id])
+    })
 
     res.json({ message: 'Your password has been reset successfully. Please sign in with your new password.' })
   } catch (error) {
