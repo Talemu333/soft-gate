@@ -46,10 +46,7 @@ router.post('/', optionalAuth, async (req, res, next) => {
     if (!Array.isArray(items) || !items.length || !customer?.name || !customer?.email || !customer?.phone || !customer?.city || !customer?.address) {
       return res.status(400).json({ message: 'Complete customer and order information is required.' })
     }
-
-    if (!['transfer', 'card'].includes(payment)) {
-      return res.status(400).json({ message: 'Invalid payment method.' })
-    }
+    if (!['transfer', 'card'].includes(payment)) return res.status(400).json({ message: 'Invalid payment method.' })
 
     const result = await transaction(async (connection) => {
       const productIds = [...new Set(items.map((item) => Number(item.productId)).filter(Number.isInteger))]
@@ -71,12 +68,8 @@ router.post('/', optionalAuth, async (req, res, next) => {
         const product = productMap.get(Number(item.productId))
         const quantity = Math.floor(Number(item.quantity || 1))
         if (!product) throw Object.assign(new Error('One of the products is no longer available.'), { status: 409 })
-        if (!Number.isInteger(quantity) || quantity < 1) {
-          throw Object.assign(new Error('Invalid product quantity.'), { status: 400 })
-        }
-        if (Number(product.stock) < quantity) {
-          throw Object.assign(new Error(`${product.name} does not have enough stock.`), { status: 409 })
-        }
+        if (!Number.isInteger(quantity) || quantity < 1) throw Object.assign(new Error('Invalid product quantity.'), { status: 400 })
+        if (Number(product.stock) < quantity) throw Object.assign(new Error(`${product.name} does not have enough stock.`), { status: 409 })
         calculatedSubtotal += Number(product.price) * quantity
         normalizedItems.push({ product, quantity })
       }
@@ -128,11 +121,15 @@ router.get('/mine', requireAuth, async (req, res, next) => {
   }
 })
 
-router.get('/:id', async (req, res, next) => {
+router.get('/:id', requireAuth, async (req, res, next) => {
   try {
-    const order = await getOrderById(req.params.id)
-    if (!order) return res.status(404).json({ message: 'Order not found.' })
-    res.json({ order })
+    const rows = await query('SELECT * FROM orders WHERE id = ? OR order_number = ?', [req.params.id, req.params.id])
+    const row = rows[0]
+    if (!row) return res.status(404).json({ message: 'Order not found.' })
+    if (req.user.role !== 'admin' && Number(row.user_id) !== Number(req.user.id)) {
+      return res.status(403).json({ message: 'You do not have access to this order.' })
+    }
+    res.json({ order: await getOrderById(row.id) })
   } catch (error) {
     next(error)
   }
