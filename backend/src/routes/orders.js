@@ -16,7 +16,9 @@ function mapOrder(row, items = []) {
 }
 
 async function getOrderById(id) {
-  const rows = await query('SELECT * FROM orders WHERE id = $1 OR order_number = $1', [id])
+  const rows = /^\d+$/.test(String(id))
+    ? await query('SELECT * FROM orders WHERE id = $1', [id])
+    : await query('SELECT * FROM orders WHERE order_number = $1', [id])
   if (!rows[0]) return null
   const items = await query('SELECT * FROM order_items WHERE order_id = $1 ORDER BY id', [rows[0].id])
   return mapOrder(rows[0], items)
@@ -77,7 +79,9 @@ router.get('/mine', requireAuth, async (req, res, next) => {
 
 router.get('/:id', requireAuth, async (req, res, next) => {
   try {
-    const rows = await query('SELECT * FROM orders WHERE id=$1 OR order_number=$1', [req.params.id])
+    const rows = /^\d+$/.test(req.params.id)
+      ? await query('SELECT * FROM orders WHERE id=$1', [req.params.id])
+      : await query('SELECT * FROM orders WHERE order_number=$1', [req.params.id])
     const row = rows[0]
     if (!row) return res.status(404).json({ message: 'Order not found.' })
     if (req.user.role !== 'admin' && Number(row.user_id) !== Number(req.user.id)) return res.status(403).json({ message: 'You do not have access to this order.' })
