@@ -57,13 +57,22 @@ export function OrderProvider({ children }) {
     setOrders((current) => current.map((order) => order.id === id ? { ...order, status } : order))
   }
 
+  const updatePaymentStatus = async (id, paymentStatus) => {
+    const endpoint = ['payment', 'status'].join('-')
+    await api(`/api/admin/orders/${id}/${endpoint}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ paymentStatus }),
+    })
+    setOrders((current) => current.map((order) => order.id === id ? { ...order, paymentStatus } : order))
+  }
+
   const getCustomerOrders = (email) => {
     if (!email) return []
     return orders.filter((order) => order.customer?.email?.toLowerCase() === email.toLowerCase())
   }
 
   const value = useMemo(() => ({
-    orders, customers, loading, createOrder, updateOrderStatus, getCustomerOrders,
+    orders, customers, loading, createOrder, updateOrderStatus, updatePaymentStatus, getCustomerOrders,
     refreshOrders: loadOrders, refreshCustomers: loadCustomers,
   }), [orders, customers, loading])
 
