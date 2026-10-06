@@ -49,9 +49,20 @@ export default function Account() {
         </section>
         {selectedOrder && <section className="account-order-detail">
           <div className="panel-heading"><div><span className="eyebrow">ORDER DETAILS</span><h2>Order #{selectedOrder.id}</h2><p>{selectedOrder.date}</p></div><button className="secondary-button" type="button" onClick={() => setParams({})}>Back to orders</button></div>
-          <div className="order-progress">
-            {['Processing', 'Confirmed', 'Shipped', 'Delivered'].map((stage) => <span className={stage === selectedOrder.status ? 'current' : ''} key={stage}>{stage}</span>)}
-          </div>
+          {selectedOrder.status === 'Cancelled' ? (
+            <div className="order-cancelled" role="status">
+              <strong>Order cancelled</strong>
+              <span>This order was cancelled before shipment.</span>
+            </div>
+          ) : (
+            <div className="order-progress">
+              {['Processing', 'Confirmed', 'Shipped', 'Delivered'].map((stage, index, stages) => {
+                const currentIndex = stages.indexOf(selectedOrder.status)
+                const stageClass = stage === selectedOrder.status ? 'current' : index < currentIndex ? 'complete' : ''
+                return <span className={stageClass} key={stage}>{stage}</span>
+              })}
+            </div>
+          )}
           <div className="order-detail-grid">
             <div><h3>Items</h3>{selectedOrder.items?.map((item) => <div className="order-detail-item" key={item.productId}><img src={item.image} alt="" /><div><b>{item.name}</b><span>{item.quantity} × {formatPrice(item.price)}</span></div><strong>{formatPrice(item.price * item.quantity)}</strong></div>)}</div>
             <aside className="summary"><span>ORDER SUMMARY</span><div><span>Subtotal</span><b>{formatPrice(selectedOrder.subtotal)}</b></div><div><span>Delivery</span><b>{selectedOrder.delivery ? formatPrice(selectedOrder.delivery) : 'FREE'}</b></div><div><span>Payment</span><b>Bank transfer · {selectedOrder.paymentStatus}</b></div><div className="total-row"><strong>Total</strong><strong>{formatPrice(selectedOrder.total)}</strong></div></aside>
