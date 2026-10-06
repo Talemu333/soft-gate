@@ -28,7 +28,7 @@ router.post('/', optionalAuth, async (req, res, next) => {
   try {
     const { items, customer, subtotal, total, payment = 'transfer' } = req.body
     if (!Array.isArray(items) || !items.length || !customer?.name || !customer?.email || !customer?.phone || !customer?.city || !customer?.address) return res.status(400).json({ message: 'Complete customer and order information is required.' })
-    if (!['transfer', 'card'].includes(payment)) return res.status(400).json({ message: 'Invalid payment method.' })
+    if (payment !== 'transfer') return res.status(400).json({ message: 'Card payments are not available yet. Please select bank transfer.' })
 
     const orderId = await transaction(async (connection) => {
       const productIds = [...new Set(items.map((item) => Number(item.productId)).filter(Number.isInteger))]
