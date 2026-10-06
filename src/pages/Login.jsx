@@ -8,7 +8,7 @@ export default function Login() {
   const { login, register } = useAuth()
   const [registerMode, setRegisterMode] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
-  const [message, setMessage] = useState('')
+  const [message, setMessage] = useState(location.state?.message || '')
   const [error, setError] = useState('')
   const [form, setForm] = useState({ name: '', email: '', password: '', phone: '' })
 
