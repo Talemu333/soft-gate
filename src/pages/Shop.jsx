@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { formatPrice } from '../data/products'
+import { formatPrice } from '../lib/format'
 import { useProducts } from '../context/ProductContext'
 import ProductCard from '../components/ProductCard'
 
