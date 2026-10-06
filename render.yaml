@@ -3,7 +3,8 @@ services:
     name: soft-gate-api
     runtime: node
     rootDir: backend
-    buildCommand: npm ci
+    branch: backend-mysql
+    buildCommand: npm install
     startCommand: npm start
     plan: free
     healthCheckPath: /api/health
