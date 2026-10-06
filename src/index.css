@@ -16,3 +16,5 @@
 .stock-filter input{width:auto!important;accent-color:#0b57c7}
 .applied-filters{display:flex;flex-wrap:wrap;gap:7px;margin:0 0 14px}
 .applied-filters button{border:1px solid #d9e3f0;background:#edf4ff;color:#0b57c7;border-radius:20px;padding:7px 10px;font-size:9px;font-weight:700}
+
+.cart-warning{display:flex;gap:8px;align-items:center;background:#fff7e8;border:1px solid #f1d7a1;color:#805b17;border-radius:7px;padding:12px 15px;margin:0 0 18px;font-size:10px}.cart-warning span{color:#9a7738}.cart-item-unavailable{background:#fffafa}.cart-status{display:block;font-size:9px;margin:5px 0 7px;font-weight:700}.cart-status.available{color:#16834a}.cart-status.limited{color:#c27600}.cart-status.unavailable{color:#c14b4b}.cart-item .quantity button:disabled{opacity:.35;cursor:not-allowed}.summary .primary-button:disabled{background:#dfe4eb;color:#7e8897;box-shadow:none;cursor:not-allowed}.auth-message a{font-weight:800;color:#0b57c7;text-decoration:underline}
