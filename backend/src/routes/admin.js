@@ -1,5 +1,5 @@
 import { Router } from 'express'
-import { query } from '../db.js'
+import { query, transaction } from '../db.js'
 import { requireAuth, requireAdmin } from '../middleware/auth.js'
 
 const router = Router()
@@ -51,12 +51,72 @@ router.get('/orders', async (req, res, next) => {
 router.patch('/orders/:id/status', async (req, res, next) => {
   try {
     const allowed = ['Processing','Confirmed','Shipped','Delivered','Cancelled']
-    if (!allowed.includes(req.body.status)) return res.status(400).json({ message: 'Invalid order status.' })
-    const rows = /^\d+$/.test(req.params.id)
-      ? await query('UPDATE orders SET status=$1, updated_at=NOW() WHERE id=$2 RETURNING id', [req.body.status, req.params.id])
-      : await query('UPDATE orders SET status=$1, updated_at=NOW() WHERE order_number=$2 RETURNING id', [req.body.status, req.params.id])
+    const nextStatus = req.body.status
+    if (!allowed.includes(nextStatus)) return res.status(400).json({ message: 'Invalid order status.' })
+
+    const result = await transaction(async (client) => {
+      const lookup = /^\d+$/.test(req.params.id)
+        ? ['SELECT id,status FROM orders WHERE id=$1 FOR UPDATE', [req.params.id]]
+        : ['SELECT id,status FROM orders WHERE order_number=$1 FOR UPDATE', [req.params.id]]
+      const orderResult = await client.query(lookup[0], lookup[1])
+      const order = orderResult.rows[0]
+      if (!order) return null
+
+      if (order.status === nextStatus) return { id: order.id, status: nextStatus }
+
+      if (order.status === 'Cancelled') {
+        const error = new Error('A cancelled order cannot be moved back to an active status.')
+        error.statusCode = 400
+        throw error
+      }
+
+      if (nextStatus === 'Cancelled' && !['Processing', 'Confirmed'].includes(order.status)) {
+        const error = new Error('Only Processing or Confirmed orders can be cancelled.')
+        error.statusCode = 400
+        throw error
+      }
+
+      if (nextStatus === 'Cancelled') {
+        const items = await client.query(
+          'SELECT product_id, quantity FROM order_items WHERE order_id=$1 FOR UPDATE',
+          [order.id],
+        )
+        for (const item of items.rows) {
+          await client.query(
+            'UPDATE products SET stock = stock + $1, updated_at=NOW() WHERE id=$2',
+            [item.quantity, item.product_id],
+          )
+        }
+      }
+
+      const updated = await client.query(
+        'UPDATE orders SET status=$1, updated_at=NOW() WHERE id=$2 RETURNING id,status',
+        [nextStatus, order.id],
+      )
+      return updated.rows[0]
+    })
+
+    if (!result) return res.status(404).json({ message: 'Order not found.' })
+    res.json({ message: 'Order status updated.', status: result.status })
+  } catch (error) {
+    if (error.statusCode) return res.status(error.statusCode).json({ message: error.message })
+    next(error)
+  }
+})
+
+router.patch('/orders/:id/payment-status', async (req, res, next) => {
+  try {
+    const allowed = ['pending', 'paid', 'failed', 'refunded']
+    if (!allowed.includes(req.body.paymentStatus)) {
+      return res.status(400).json({ message: 'Invalid payment status.' })
+    }
+
+    const lookup = /^\d+$/.test(req.params.id)
+      ? ['UPDATE orders SET payment_status=$1, updated_at=NOW() WHERE id=$2 RETURNING id,payment_status', [req.body.paymentStatus, req.params.id]]
+      : ['UPDATE orders SET payment_status=$1, updated_at=NOW() WHERE order_number=$2 RETURNING id,payment_status', [req.body.paymentStatus, req.params.id]]
+    const rows = await query(lookup[0], lookup[1])
     if (!rows[0]) return res.status(404).json({ message: 'Order not found.' })
-    res.json({ message: 'Order status updated.' })
+    res.json({ message: 'Payment status updated.', paymentStatus: rows[0].payment_status })
   } catch (error) { next(error) }
 })
 
