@@ -9,8 +9,12 @@ if (!process.env.DATABASE_URL) {
   console.warn('DATABASE_URL is not set. The API cannot connect to PostgreSQL until it is configured.')
 }
 
+const databaseUrl = process.env.DATABASE_URL
+  ? process.env.DATABASE_URL.replace(/([?&])sslmode=require(&?)/, (match, prefix, middle) => prefix === '?' && middle ? '?' : '')
+  : undefined
+
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
+  connectionString: databaseUrl,
   max: Number(process.env.DB_CONNECTION_LIMIT || 5),
   idleTimeoutMillis: 30000,
   connectionTimeoutMillis: 10000,
