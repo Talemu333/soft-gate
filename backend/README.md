@@ -6,13 +6,14 @@ Node.js + Express + PostgreSQL backend for the Soft-Gate storefront.
 
 1. Create a PostgreSQL database and run `schema.sql`.
 2. Copy `.env.example` to `.env` and set `DATABASE_URL`.
-3. From this directory run:
+3. Configure the SMTP variables in `.env` so customers can receive account recovery emails.
+4. From this directory run:
    ```
    npm install
    npm run seed
    npm start
    ```
-4. The API runs on `http://localhost:5000`.
+5. The API runs on `http://localhost:5000`.
 
 ## Production
 
@@ -22,6 +23,9 @@ The API exposes:
 - `GET /api/health`
 - `POST /api/auth/register`
 - `POST /api/auth/login`
+- `POST /api/auth/forgot-password`
+- `POST /api/auth/reset-password`
+- `POST /api/auth/logout`
 - `GET /api/auth/me`
 - `GET /api/products`
 - `GET /api/products/:id`
