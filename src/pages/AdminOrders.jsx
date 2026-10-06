@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { formatPrice } from '../data/products'
+import { formatPrice } from '../lib/format'
 import { useOrders } from '../context/OrderContext'
 import { AdminNav } from './AdminProducts'
 
