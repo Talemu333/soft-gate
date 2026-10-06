@@ -1,11 +1,11 @@
 # Soft-Gate API
 
-Node.js + Express + MySQL backend for the Soft-Gate storefront.
+Node.js + Express + PostgreSQL backend for the Soft-Gate storefront.
 
 ## Local setup
 
-1. Create a MySQL database and run `schema.sql`.
-2. Copy `.env.example` to `.env` and fill in the database credentials.
+1. Create a PostgreSQL database and run `schema.sql`.
+2. Copy `.env.example` to `.env` and set `DATABASE_URL`.
 3. From this directory run:
    ```
    npm install
@@ -16,7 +16,7 @@ Node.js + Express + MySQL backend for the Soft-Gate storefront.
 
 ## Production
 
-Set the same environment variables in the hosting provider. Never commit `.env`.
+The production database is intended to run on Neon PostgreSQL and the API on Render. Set environment variables in Render and never commit `.env`.
 
 The API exposes:
 - `GET /api/health`
@@ -25,7 +25,9 @@ The API exposes:
 - `GET /api/auth/me`
 - `GET /api/products`
 - `GET /api/products/:id`
-- `POST/PUT/DELETE /api/products` (admin)
+- `POST /api/products` (admin)
+- `PUT /api/products/:id` (admin)
+- `DELETE /api/products/:id` (admin)
 - `POST /api/orders`
 - `GET /api/orders/mine`
 - `GET /api/orders/:id`
