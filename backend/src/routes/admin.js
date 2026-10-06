@@ -39,7 +39,9 @@ router.patch('/orders/:id/status', async (req, res, next) => {
   try {
     const allowed = ['Processing','Confirmed','Shipped','Delivered','Cancelled']
     if (!allowed.includes(req.body.status)) return res.status(400).json({ message: 'Invalid order status.' })
-    const rows = await query('UPDATE orders SET status=$1, updated_at=NOW() WHERE id=$2 OR order_number=$2 RETURNING id', [req.body.status, req.params.id])
+    const rows = /^\d+$/.test(req.params.id)
+      ? await query('UPDATE orders SET status=$1, updated_at=NOW() WHERE id=$2 RETURNING id', [req.body.status, req.params.id])
+      : await query('UPDATE orders SET status=$1, updated_at=NOW() WHERE order_number=$2 RETURNING id', [req.body.status, req.params.id])
     if (!rows[0]) return res.status(404).json({ message: 'Order not found.' })
     res.json({ message: 'Order status updated.' })
   } catch (error) { next(error) }
