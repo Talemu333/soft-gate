@@ -1,6 +1,6 @@
 import { Router } from 'express'
 import { query } from '../db.js'
-import { requireAuth, requireAdmin } from '../middleware/auth.js'
+import { optionalAuth, requireAuth, requireAdmin } from '../middleware/auth.js'
 
 const router = Router()
 
@@ -10,15 +10,22 @@ function serializeProduct(row) {
     oldPrice: row.old_price == null ? undefined : Number(row.old_price),
     rating: Number(row.rating), reviews: Number(row.reviews), stock: Number(row.stock),
     badge: row.badge || '', image: row.image || '', description: row.description || '',
+    active: row.active === true,
     specs: typeof row.specs === 'string' ? JSON.parse(row.specs || '[]') : (row.specs || []),
   }
 }
 
-router.get('/', async (req, res, next) => {
+router.get('/', optionalAuth, async (req, res, next) => {
   try {
     const { search = '', category = '', includeInactive = 'false' } = req.query
     const params = [], where = []
-    if (includeInactive !== 'true') where.push('active = TRUE')
+
+    if (includeInactive === 'true') {
+      if (req.user?.role !== 'admin') return res.status(403).json({ message: 'Administrator access required.' })
+    } else {
+      where.push('active = TRUE')
+    }
+
     if (category && category !== 'All') { params.push(category); where.push('category = $' + params.length) }
     if (search.trim()) { params.push('%' + search.trim() + '%', '%' + search.trim() + '%'); where.push('(name ILIKE $' + (params.length - 1) + ' OR category ILIKE $' + params.length + ')') }
     const sql = 'SELECT * FROM products ' + (where.length ? 'WHERE ' + where.join(' AND ') : '') + ' ORDER BY created_at DESC, id DESC'
