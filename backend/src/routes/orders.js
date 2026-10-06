@@ -1,6 +1,6 @@
 import { Router } from 'express'
 import { query, transaction } from '../db.js'
-import { requireAuth } from '../middleware/auth.js'
+import { optionalAuth, requireAuth } from '../middleware/auth.js'
 
 const router = Router()
 
@@ -40,15 +40,23 @@ async function getOrderById(id) {
   return mapOrder(rows[0], items)
 }
 
-router.post('/', async (req, res, next) => {
+router.post('/', optionalAuth, async (req, res, next) => {
   try {
-    const { items, customer, subtotal, delivery, total, payment = 'transfer' } = req.body
+    const { items, customer, subtotal, total, payment = 'transfer' } = req.body
     if (!Array.isArray(items) || !items.length || !customer?.name || !customer?.email || !customer?.phone || !customer?.city || !customer?.address) {
       return res.status(400).json({ message: 'Complete customer and order information is required.' })
     }
 
+    if (!['transfer', 'card'].includes(payment)) {
+      return res.status(400).json({ message: 'Invalid payment method.' })
+    }
+
     const result = await transaction(async (connection) => {
-      const productIds = items.map((item) => Number(item.productId))
+      const productIds = [...new Set(items.map((item) => Number(item.productId)).filter(Number.isInteger))]
+      if (!productIds.length || productIds.length !== items.length) {
+        throw Object.assign(new Error('Invalid product selection.'), { status: 400 })
+      }
+
       const placeholders = productIds.map(() => '?').join(',')
       const [products] = await connection.query(
         `SELECT * FROM products WHERE id IN (${placeholders}) AND active = 1 FOR UPDATE`,
@@ -61,8 +69,11 @@ router.post('/', async (req, res, next) => {
 
       for (const item of items) {
         const product = productMap.get(Number(item.productId))
-        const quantity = Math.max(1, Number(item.quantity || 1))
+        const quantity = Math.floor(Number(item.quantity || 1))
         if (!product) throw Object.assign(new Error('One of the products is no longer available.'), { status: 409 })
+        if (!Number.isInteger(quantity) || quantity < 1) {
+          throw Object.assign(new Error('Invalid product quantity.'), { status: 400 })
+        }
         if (Number(product.stock) < quantity) {
           throw Object.assign(new Error(`${product.name} does not have enough stock.`), { status: 409 })
         }
