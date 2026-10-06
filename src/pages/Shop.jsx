@@ -7,29 +7,53 @@ import ProductCard from '../components/ProductCard'
 const PRICE_STEP = 10000
 
 export default function Shop() {
-  const { products, categories } = useProducts()
+  const { products, categories, loading, error } = useProducts()
   const [params, setParams] = useSearchParams()
-  const [search, setSearch] = useState(params.get('search') || '')
-  const [sort, setSort] = useState('featured')
-  const maxProductPrice = Math.max(10000, ...products.map((product) => Number(product.price) || 0))
-  const [maxPrice, setMaxPrice] = useState(maxProductPrice)
   const category = params.get('category') || 'All'
+  const search = params.get('search') || ''
+  const sort = params.get('sort') || 'featured'
+  const inStockOnly = params.get('stock') === 'in-stock'
+  const maxProductPrice = Math.max(10000, ...products.map((product) => Number(product.price) || 0))
+  const requestedMaxPrice = Number(params.get('maxPrice'))
+  const maxPrice = Number.isFinite(requestedMaxPrice) && requestedMaxPrice >= 10000
+    ? Math.min(requestedMaxPrice, maxProductPrice)
+    : maxProductPrice
+
+  const [searchInput, setSearchInput] = useState(search)
 
   useEffect(() => {
-    setMaxPrice(maxProductPrice)
-  }, [maxProductPrice])
+    setSearchInput(search)
+  }, [search])
 
   const categoryCounts = useMemo(() => categories.reduce((counts, name) => {
     counts[name] = name === 'All' ? products.length : products.filter((product) => product.category === name).length
     return counts
   }, {}), [categories, products])
 
+  const updateParams = (changes = {}) => {
+    const next = new URLSearchParams(params)
+    Object.entries(changes).forEach(([key, value]) => {
+      if (value === '' || value === null || value === undefined || value === false) next.delete(key)
+      else next.set(key, String(value))
+    })
+    setParams(next)
+  }
+
+  const chooseCategory = (value) => updateParams({ category: value === 'All' ? null : value })
+  const clearFilters = () => {
+    setSearchInput('')
+    setParams({})
+  }
+
   const filtered = useMemo(() => {
     const term = search.trim().toLowerCase()
     const list = products.filter((product) => {
       const matchesCategory = category === 'All' || product.category === category
       const searchable = `${product.name} ${product.category} ${product.description} ${(product.specs || []).join(' ')}`.toLowerCase()
-      return matchesCategory && searchable.includes(term) && Number(product.price) <= maxPrice && Number(product.stock) > 0
+      const matchesSearch = searchable.includes(term)
+      const matchesPrice = Number(product.price) <= maxPrice
+      const matchesStock = !inStockOnly || Number(product.stock) > 0
+      return matchesCategory && matchesSearch && matchesPrice && matchesStock
     })
 
     if (sort === 'low') list.sort((a, b) => a.price - b.price)
@@ -37,15 +61,9 @@ export default function Shop() {
     if (sort === 'rating') list.sort((a, b) => b.rating - a.rating)
     if (sort === 'discount') list.sort((a, b) => ((b.oldPrice || 0) - b.price) - ((a.oldPrice || 0) - a.price))
     return list
-  }, [category, search, sort, maxPrice, products])
+  }, [category, search, sort, maxPrice, inStockOnly, products])
 
-  const chooseCategory = (value) => setParams(value === 'All' ? {} : { category: value, ...(search ? { search } : {}) })
-  const clearFilters = () => {
-    setSearch('')
-    setMaxPrice(maxProductPrice)
-    setSort('featured')
-    setParams({})
-  }
+  const hasFilters = search || category !== 'All' || maxPrice !== maxProductPrice || sort !== 'featured' || inStockOnly
 
   return (
     <main className="catalog-page">
@@ -55,7 +73,7 @@ export default function Shop() {
           <h1>{category === 'All' ? 'Shop all products' : category}</h1>
           <p>Quality technology for work, study, business and everyday life.</p>
         </div>
-        <div className="catalog-count">{filtered.length} of {categoryCounts[category] || 0} products</div>
+        <div className="catalog-count">{filtered.length} product{filtered.length !== 1 ? 's' : ''}</div>
       </div>
 
       <div className="catalog-body">
@@ -68,9 +86,27 @@ export default function Shop() {
           ))}
 
           <div className="filter-title price-title">Maximum price</div>
-          <input type="range" min="10000" max={maxProductPrice} step={PRICE_STEP} value={Math.min(maxPrice, maxProductPrice)} onChange={(event) => setMaxPrice(Number(event.target.value))} aria-label="Maximum price" />
+          <input
+            type="range"
+            min="10000"
+            max={maxProductPrice}
+            step={PRICE_STEP}
+            value={Math.min(maxPrice, maxProductPrice)}
+            onChange={(event) => updateParams({ maxPrice: event.target.value })}
+            aria-label="Maximum price"
+          />
           <div className="price-range"><span>₦10k</span><b>{formatPrice(maxPrice)}</b></div>
-          {(search || category !== 'All' || maxPrice !== maxProductPrice || sort !== 'featured') && (
+
+          <label className="stock-filter">
+            <input
+              type="checkbox"
+              checked={inStockOnly}
+              onChange={(event) => updateParams({ stock: event.target.checked ? 'in-stock' : null })}
+            />
+            <span>In stock only</span>
+          </label>
+
+          {hasFilters && (
             <button type="button" onClick={clearFilters} className="selected">Clear all filters <span>×</span></button>
           )}
         </aside>
@@ -82,8 +118,19 @@ export default function Shop() {
                 {categories.map((name) => <option key={name} value={name}>{name}</option>)}
               </select>
             </div>
-            <label className="catalog-search">⌕<input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search products, brands or features..." aria-label="Search products" /></label>
-            <select value={sort} onChange={(event) => setSort(event.target.value)} aria-label="Sort products">
+            <label className="catalog-search">⌕
+              <input
+                value={searchInput}
+                onChange={(event) => {
+                  const value = event.target.value
+                  setSearchInput(value)
+                  updateParams({ search: value.trim() || null })
+                }}
+                placeholder="Search products, brands or features..."
+                aria-label="Search products"
+              />
+            </label>
+            <select value={sort} onChange={(event) => updateParams({ sort: event.target.value === 'featured' ? null : event.target.value })} aria-label="Sort products">
               <option value="featured">Sort: Featured</option>
               <option value="low">Price: Low to high</option>
               <option value="high">Price: High to low</option>
@@ -92,11 +139,22 @@ export default function Shop() {
             </select>
           </div>
 
-          {filtered.length ? (
-            <>
-              <div className="catalog-count" style={{ marginBottom: 12 }}>{filtered.length} result{filtered.length !== 1 ? 's' : ''}</div>
-              <div className="product-grid">{filtered.map((product) => <ProductCard key={product.id} product={product} />)}</div>
-            </>
+          {hasFilters && (
+            <div className="applied-filters" aria-label="Applied filters">
+              {category !== 'All' && <button type="button" onClick={() => chooseCategory('All')}>Category: {category} ×</button>}
+              {search && <button type="button" onClick={() => { setSearchInput(''); updateParams({ search: null }) }}>Search: “{search}” ×</button>}
+              {inStockOnly && <button type="button" onClick={() => updateParams({ stock: null })}>In stock only ×</button>}
+              {maxPrice !== maxProductPrice && <button type="button" onClick={() => updateParams({ maxPrice: null })}>Up to {formatPrice(maxPrice)} ×</button>}
+              {sort !== 'featured' && <button type="button" onClick={() => updateParams({ sort: null })}>Sort: {sort === 'low' ? 'Lowest price' : sort === 'high' ? 'Highest price' : sort === 'rating' ? 'Top rated' : 'Biggest savings'} ×</button>}
+            </div>
+          )}
+
+          {loading ? (
+            <div className="empty-state"><h2>Loading products...</h2><p>Please wait while we load the latest Soft-Gate catalog.</p></div>
+          ) : error ? (
+            <div className="empty-state"><h2>We couldn't load the products</h2><p>{error}</p><button className="primary-button" onClick={() => window.location.reload()} type="button">Try again</button></div>
+          ) : filtered.length ? (
+            <div className="product-grid">{filtered.map((product) => <ProductCard key={product.id} product={product} />)}</div>
           ) : (
             <div className="empty-state">
               <div>⌕</div>
