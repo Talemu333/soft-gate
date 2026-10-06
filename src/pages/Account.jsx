@@ -9,6 +9,8 @@ export default function Account() {
   const { count: wishlistCount } = useWishlist()
   const { orders } = useOrders()
   const { user, logout } = useAuth()
+  const [params, setParams] = useSearchParams()
+  const selectedOrder = orders.find((order) => order.id === params.get('order'))
 
   const name = user?.name || 'Customer'
   const email = user?.email || ''
@@ -44,6 +46,17 @@ export default function Account() {
           <article><small>Wishlist</small><strong>{wishlistCount}</strong><span>Saved products</span></article>
           <article><small>Account status</small><strong>✓</strong><span>Active customer</span></article>
         </section>
+        {selectedOrder && <section className="account-order-detail">
+          <div className="panel-heading"><div><span className="eyebrow">ORDER DETAILS</span><h2>Order #{selectedOrder.id}</h2><p>{selectedOrder.date}</p></div><button className="secondary-button" type="button" onClick={() => setParams({})}>Back to orders</button></div>
+          <div className="order-progress">
+            {['Processing', 'Confirmed', 'Shipped', 'Delivered'].map((stage) => <span className={stage === selectedOrder.status ? 'current' : ''} key={stage}>{stage}</span>)}
+          </div>
+          <div className="order-detail-grid">
+            <div><h3>Items</h3>{selectedOrder.items?.map((item) => <div className="order-detail-item" key={item.productId}><img src={item.image} alt="" /><div><b>{item.name}</b><span>{item.quantity} × {formatPrice(item.price)}</span></div><strong>{formatPrice(item.price * item.quantity)}</strong></div>)}</div>
+            <aside className="summary"><span>ORDER SUMMARY</span><div><span>Subtotal</span><b>{formatPrice(selectedOrder.subtotal)}</b></div><div><span>Delivery</span><b>{selectedOrder.delivery ? formatPrice(selectedOrder.delivery) : 'FREE'}</b></div><div><span>Payment</span><b>Bank transfer · {selectedOrder.paymentStatus}</b></div><div className="total-row"><strong>Total</strong><strong>{formatPrice(selectedOrder.total)}</strong></div></aside>
+          </div>
+          <div className="order-delivery-card"><h3>Delivery information</h3><p><b>{selectedOrder.customer?.name}</b><br />{selectedOrder.customer?.address}<br />{selectedOrder.customer?.city}<br />{selectedOrder.customer?.phone} · {selectedOrder.customer?.email}</p></div>
+        </section>}
         <section className="orders-panel" id="orders">
           <div className="panel-heading">
             <div><span className="eyebrow">ORDER HISTORY</span><h2>Recent orders</h2></div>
