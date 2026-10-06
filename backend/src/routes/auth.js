@@ -7,7 +7,6 @@ import { sendPasswordResetEmail } from '../services/email.js'
 
 const router = Router()
 
-const RESET_TOKEN_TTL_MINUTES = 30
 const resetAttempts = new Map()
 
 const publicUser = (user) => ({
@@ -157,23 +156,26 @@ router.post('/reset-password', async (req, res, next) => {
     if (newPassword !== confirmPassword) return res.status(400).json({ message: 'Passwords do not match.' })
 
     const tokenHash = resetTokenHash(token)
-    const rows = await query(
-      'SELECT id, user_id FROM password_reset_tokens WHERE token_hash = $1 AND used_at IS NULL AND expires_at > NOW()',
-      [tokenHash],
-    )
-    const resetRecord = rows[0]
-
-    if (!resetRecord) {
-      return res.status(400).json({ message: 'This password reset link is invalid or has expired. Please request a new one.' })
-    }
-
     const passwordHash = await bcrypt.hash(newPassword, 12)
 
-    await transaction(async (client) => {
+    const resetSucceeded = await transaction(async (client) => {
+      const result = await client.query(
+        'SELECT id, user_id FROM password_reset_tokens WHERE token_hash = $1 AND used_at IS NULL AND expires_at > NOW() FOR UPDATE',
+        [tokenHash],
+      )
+      const resetRecord = result.rows[0]
+
+      if (!resetRecord) return false
+
       await client.query('UPDATE users SET password_hash = $1, updated_at = NOW() WHERE id = $2', [passwordHash, resetRecord.user_id])
       await client.query('UPDATE password_reset_tokens SET used_at = NOW() WHERE id = $1', [resetRecord.id])
       await client.query('DELETE FROM password_reset_tokens WHERE user_id = $1 AND id <> $2', [resetRecord.user_id, resetRecord.id])
+      return true
     })
+
+    if (!resetSucceeded) {
+      return res.status(400).json({ message: 'This password reset link is invalid or has expired. Please request a new one.' })
+    }
 
     res.json({ message: 'Your password has been reset successfully. Please sign in with your new password.' })
   } catch (error) {
