@@ -24,7 +24,6 @@ export default function AdminDashboard() {
           <section className="admin-panel"><div className="admin-panel-head"><div><span className="eyebrow">INVENTORY</span><h2>Low stock</h2></div><Link to="/admin/products">Manage →</Link></div><div className="stock-list">{lowStock.map((product) => <div key={product.id}><img src={product.image} alt=""/><span><b>{product.name}</b><small>{product.category}</small></span><strong>{product.stock} left</strong></div>)}</div></section>
         </div>
         <section className="admin-panel quick-panel"><div className="admin-panel-head"><div><span className="eyebrow">QUICK ACTIONS</span><h2>Manage your store</h2></div></div><div className="quick-actions"><Link to="/admin/products"><b>▣</b><span><strong>Products</strong><small>Add, edit and update stock</small></span>→</Link><Link to="/admin/orders"><b>▤</b><span><strong>Orders</strong><small>Review and update orders</small></span>→</Link><Link to="/admin/customers"><b>♙</b><span><strong>Customers</strong><small>View customer activity</small></span>→</Link></div></section>
-        <div className="admin-demo-note">Demo admin interface: data is currently stored in browser localStorage. Authentication, permissions and database-backed management will be connected when the production backend is implemented.</div>
       </section>
     </div>
   </main>
