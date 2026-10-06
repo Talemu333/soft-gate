@@ -4,22 +4,15 @@ export function getApiUrl(path) {
   return `${API_URL}${path}`
 }
 
-export function getToken() {
-  return localStorage.getItem('softgate-token')
-}
-
-export function setToken(token) {
-  if (token) localStorage.setItem('softgate-token', token)
-  else localStorage.removeItem('softgate-token')
-}
-
 export async function api(path, options = {}) {
-  const token = getToken()
   const headers = new Headers(options.headers || {})
   if (options.body !== undefined) headers.set('Content-Type', 'application/json')
-  if (token) headers.set('Authorization', `Bearer ${token}`)
 
-  const response = await fetch(getApiUrl(path), { ...options, headers })
+  const response = await fetch(getApiUrl(path), {
+    ...options,
+    headers,
+    credentials: 'include',
+  })
   let data = null
   try { data = await response.json() } catch {}
 
