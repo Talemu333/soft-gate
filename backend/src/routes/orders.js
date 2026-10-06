@@ -1,4 +1,5 @@
 import { Router } from 'express'
+import { randomBytes } from 'crypto'
 import { query, transaction } from '../db.js'
 import { optionalAuth, requireAuth } from '../middleware/auth.js'
 
@@ -53,7 +54,7 @@ router.post('/', optionalAuth, async (req, res, next) => {
       const calculatedTotal = calculatedSubtotal + calculatedDelivery
       if (Math.abs(Number(subtotal) - calculatedSubtotal) > 0.01 || Math.abs(Number(total) - calculatedTotal) > 0.01) throw Object.assign(new Error('The order total changed. Please review your cart and try again.'), { status: 409 })
 
-      const orderNumber = 'SG-' + Date.now().toString().slice(-8)
+      const orderNumber = 'SG-' + Date.now().toString(36).toUpperCase() + '-' + randomBytes(2).toString('hex').toUpperCase()
       const orderResult = await connection.query(
         'INSERT INTO orders (order_number,user_id,customer_name,customer_email,customer_phone,city,address,subtotal,delivery,total,payment_method) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING id',
         [orderNumber, req.user?.id || null, customer.name.trim(), customer.email.trim().toLowerCase(), customer.phone.trim(), customer.city.trim(), customer.address.trim(), calculatedSubtotal, calculatedDelivery, calculatedTotal, payment],
