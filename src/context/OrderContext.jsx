@@ -1,56 +1,60 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react'
+import { api } from '../lib/api'
+import { useAuth } from './AuthContext'
 
 const OrderContext = createContext(null)
 
-const readOrders = () => {
-  try {
-    const parsed = JSON.parse(localStorage.getItem('softgate-orders') || '[]')
-    return Array.isArray(parsed) ? parsed : []
-  } catch {
-    return []
-  }
-}
-
-const readCustomer = () => {
-  try {
-    return JSON.parse(localStorage.getItem('softgate-customer') || 'null')
-  } catch {
-    return null
-  }
-}
-
 export function OrderProvider({ children }) {
-  const [orders, setOrders] = useState(readOrders)
+  const { user } = useAuth()
+  const [orders, setOrders] = useState([])
+  const [customers, setCustomers] = useState([])
+  const [loading, setLoading] = useState(false)
+
+  const loadOrders = async () => {
+    if (!user) {
+      setOrders([])
+      return
+    }
+    setLoading(true)
+    try {
+      const data = user.role === 'admin'
+        ? await api('/api/admin/orders')
+        : await api('/api/orders/mine')
+      setOrders(data.orders || [])
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const loadCustomers = async () => {
+    if (user?.role !== 'admin') {
+      setCustomers([])
+      return
+    }
+    const data = await api('/api/admin/customers')
+    setCustomers(data.customers || [])
+  }
 
   useEffect(() => {
-    const syncOrders = () => setOrders(readOrders())
-    const syncCustomer = () => setOrders((current) => [...current])
+    loadOrders().catch(() => setOrders([]))
+    loadCustomers().catch(() => setCustomers([]))
+  }, [user?.id, user?.role])
 
-    window.addEventListener('storage', syncOrders)
-    window.addEventListener('softgate-orders-updated', syncOrders)
-    window.addEventListener('softgate-customer-updated', syncCustomer)
-
-    return () => {
-      window.removeEventListener('storage', syncOrders)
-      window.removeEventListener('softgate-orders-updated', syncOrders)
-      window.removeEventListener('softgate-customer-updated', syncCustomer)
-    }
-  }, [])
-
-  const replaceOrders = (next) => {
-    setOrders(next)
-    localStorage.setItem('softgate-orders', JSON.stringify(next))
-    window.dispatchEvent(new Event('softgate-orders-updated'))
+  const createOrder = async (order) => {
+    const data = await api('/api/orders', {
+      method: 'POST',
+      body: JSON.stringify(order),
+    })
+    if (user) setOrders((current) => [data.order, ...current])
+    return data.order
   }
 
-  const createOrder = (order) => {
-    const next = [order, ...orders]
-    replaceOrders(next)
-    return order
-  }
-
-  const updateOrderStatus = (id, status) => {
-    replaceOrders(orders.map((order) => order.id === id ? { ...order, status } : order))
+  const updateOrderStatus = async (id, status) => {
+    await api(`/api/admin/orders/${id}/status`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status }),
+    })
+    setOrders((current) => current.map((order) => order.id === id ? { ...order, status } : order))
   }
 
   const getCustomerOrders = (email) => {
@@ -58,52 +62,10 @@ export function OrderProvider({ children }) {
     return orders.filter((order) => order.customer?.email?.toLowerCase() === email.toLowerCase())
   }
 
-  const customers = useMemo(() => {
-    const map = new Map()
-
-    orders.forEach((order) => {
-      const customer = order.customer || {}
-      const key = customer.email?.toLowerCase() || customer.phone || customer.name || order.id
-      const current = map.get(key) || {
-        name: customer.name || 'Customer',
-        email: customer.email || '—',
-        phone: customer.phone || '—',
-        orders: 0,
-        spend: 0,
-        lastOrder: order.date || '—',
-      }
-      current.orders += 1
-      current.spend += Number(order.total || 0)
-      current.lastOrder = order.date || current.lastOrder
-      map.set(key, current)
-    })
-
-    const saved = readCustomer()
-    if (saved?.email) {
-      const key = saved.email.toLowerCase()
-      if (!map.has(key)) {
-        map.set(key, {
-          name: saved.name || 'Customer',
-          email: saved.email,
-          phone: saved.phone || '—',
-          orders: 0,
-          spend: 0,
-          lastOrder: 'No orders yet',
-        })
-      }
-    }
-
-    return [...map.values()].sort((a, b) => b.spend - a.spend)
-  }, [orders])
-
   const value = useMemo(() => ({
-    orders,
-    customers,
-    createOrder,
-    updateOrderStatus,
-    getCustomerOrders,
-    replaceOrders,
-  }), [orders, customers])
+    orders, customers, loading, createOrder, updateOrderStatus, getCustomerOrders,
+    refreshOrders: loadOrders, refreshCustomers: loadCustomers,
+  }), [orders, customers, loading])
 
   return <OrderContext.Provider value={value}>{children}</OrderContext.Provider>
 }
