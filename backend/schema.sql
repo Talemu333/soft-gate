@@ -1,72 +1,66 @@
-CREATE DATABASE IF NOT EXISTS softgate CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-USE softgate;
-
 CREATE TABLE IF NOT EXISTS users (
-  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  id BIGSERIAL PRIMARY KEY,
   name VARCHAR(120) NOT NULL,
   email VARCHAR(190) NOT NULL UNIQUE,
   password_hash VARCHAR(255) NOT NULL,
-  phone VARCHAR(40) NULL,
-  role ENUM('customer','admin') NOT NULL DEFAULT 'customer',
-  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  PRIMARY KEY (id)
-) ENGINE=InnoDB;
+  phone VARCHAR(40),
+  role VARCHAR(20) NOT NULL DEFAULT 'customer' CHECK (role IN ('customer', 'admin')),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
 
 CREATE TABLE IF NOT EXISTS products (
-  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  id BIGSERIAL PRIMARY KEY,
   name VARCHAR(180) NOT NULL,
   category VARCHAR(100) NOT NULL,
-  price DECIMAL(14,2) NOT NULL,
-  old_price DECIMAL(14,2) NULL,
-  rating DECIMAL(3,2) NOT NULL DEFAULT 0,
-  reviews INT UNSIGNED NOT NULL DEFAULT 0,
-  stock INT NOT NULL DEFAULT 0,
-  badge VARCHAR(60) NULL,
-  image TEXT NULL,
-  description TEXT NULL,
-  specs JSON NULL,
-  active TINYINT(1) NOT NULL DEFAULT 1,
-  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  PRIMARY KEY (id),
-  INDEX idx_products_category (category),
-  INDEX idx_products_active (active)
-) ENGINE=InnoDB;
+  price NUMERIC(14,2) NOT NULL,
+  old_price NUMERIC(14,2),
+  rating NUMERIC(3,2) NOT NULL DEFAULT 0,
+  reviews INTEGER NOT NULL DEFAULT 0,
+  stock INTEGER NOT NULL DEFAULT 0,
+  badge VARCHAR(60),
+  image TEXT,
+  description TEXT,
+  specs JSONB NOT NULL DEFAULT '[]'::jsonb,
+  active BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_products_category ON products(category);
+CREATE INDEX IF NOT EXISTS idx_products_active ON products(active);
 
 CREATE TABLE IF NOT EXISTS orders (
-  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  id BIGSERIAL PRIMARY KEY,
   order_number VARCHAR(30) NOT NULL UNIQUE,
-  user_id BIGINT UNSIGNED NULL,
+  user_id BIGINT REFERENCES users(id) ON DELETE SET NULL,
   customer_name VARCHAR(120) NOT NULL,
   customer_email VARCHAR(190) NOT NULL,
   customer_phone VARCHAR(40) NOT NULL,
   city VARCHAR(100) NOT NULL,
   address TEXT NOT NULL,
-  subtotal DECIMAL(14,2) NOT NULL,
-  delivery DECIMAL(14,2) NOT NULL DEFAULT 0,
-  total DECIMAL(14,2) NOT NULL,
-  payment_method ENUM('transfer','card') NOT NULL DEFAULT 'transfer',
-  payment_status ENUM('pending','paid','failed','refunded') NOT NULL DEFAULT 'pending',
-  status ENUM('Processing','Confirmed','Shipped','Delivered','Cancelled') NOT NULL DEFAULT 'Processing',
-  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  PRIMARY KEY (id),
-  INDEX idx_orders_user (user_id),
-  INDEX idx_orders_email (customer_email),
-  INDEX idx_orders_status (status),
-  CONSTRAINT fk_orders_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
-) ENGINE=InnoDB;
+  subtotal NUMERIC(14,2) NOT NULL,
+  delivery NUMERIC(14,2) NOT NULL DEFAULT 0,
+  total NUMERIC(14,2) NOT NULL,
+  payment_method VARCHAR(20) NOT NULL DEFAULT 'transfer' CHECK (payment_method IN ('transfer', 'card')),
+  payment_status VARCHAR(20) NOT NULL DEFAULT 'pending' CHECK (payment_status IN ('pending', 'paid', 'failed', 'refunded')),
+  status VARCHAR(20) NOT NULL DEFAULT 'Processing' CHECK (status IN ('Processing', 'Confirmed', 'Shipped', 'Delivered', 'Cancelled')),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_orders_user ON orders(user_id);
+CREATE INDEX IF NOT EXISTS idx_orders_email ON orders(customer_email);
+CREATE INDEX IF NOT EXISTS idx_orders_status ON orders(status);
 
 CREATE TABLE IF NOT EXISTS order_items (
-  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-  order_id BIGINT UNSIGNED NOT NULL,
-  product_id BIGINT UNSIGNED NOT NULL,
+  id BIGSERIAL PRIMARY KEY,
+  order_id BIGINT NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+  product_id BIGINT NOT NULL,
   product_name VARCHAR(180) NOT NULL,
-  unit_price DECIMAL(14,2) NOT NULL,
-  quantity INT UNSIGNED NOT NULL,
-  image TEXT NULL,
-  PRIMARY KEY (id),
-  INDEX idx_order_items_order (order_id),
-  CONSTRAINT fk_order_items_order FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE
-) ENGINE=InnoDB;
+  unit_price NUMERIC(14,2) NOT NULL,
+  quantity INTEGER NOT NULL CHECK (quantity > 0),
+  image TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_order_items_order ON order_items(order_id);
