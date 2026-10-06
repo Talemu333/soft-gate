@@ -8,10 +8,13 @@ export function signToken(user) {
   )
 }
 
-export function requireAuth(req, res, next) {
+function readToken(req) {
   const header = req.headers.authorization || ''
-  const token = header.startsWith('Bearer ') ? header.slice(7) : null
+  return header.startsWith('Bearer ') ? header.slice(7) : null
+}
 
+export function requireAuth(req, res, next) {
+  const token = readToken(req)
   if (!token) return res.status(401).json({ message: 'Authentication required.' })
 
   try {
@@ -20,6 +23,14 @@ export function requireAuth(req, res, next) {
   } catch {
     return res.status(401).json({ message: 'Your session has expired. Please sign in again.' })
   }
+}
+
+export function optionalAuth(req, res, next) {
+  const token = readToken(req)
+  if (token) {
+    try { req.user = jwt.verify(token, process.env.JWT_SECRET) } catch {}
+  }
+  next()
 }
 
 export function requireAdmin(req, res, next) {
