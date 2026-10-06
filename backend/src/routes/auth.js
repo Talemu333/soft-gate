@@ -119,6 +119,12 @@ router.post('/forgot-password', async (req, res, next) => {
     const user = rows[0]
 
     if (user) {
+      const recent = await query(
+        'SELECT id FROM password_reset_tokens WHERE user_id = $1 AND created_at > NOW() - INTERVAL \'60 seconds\' LIMIT 1',
+        [user.id],
+      )
+      if (recent.length) return res.json({ message: genericMessage })
+
       await query('DELETE FROM password_reset_tokens WHERE user_id = $1', [user.id])
 
       const rawToken = randomBytes(32).toString('hex')
