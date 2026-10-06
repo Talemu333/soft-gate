@@ -1,0 +1,130 @@
+import { Router } from 'express'
+import { query, transaction } from '../db.js'
+import { requireAuth } from '../middleware/auth.js'
+
+const router = Router()
+
+function mapOrder(row, items = []) {
+  return {
+    id: row.order_number,
+    databaseId: Number(row.id),
+    date: new Date(row.created_at).toLocaleDateString('en-NG', { day: '2-digit', month: 'short', year: 'numeric' }),
+    createdAt: row.created_at,
+    status: row.status,
+    payment: row.payment_method,
+    paymentStatus: row.payment_status,
+    subtotal: Number(row.subtotal),
+    delivery: Number(row.delivery),
+    total: Number(row.total),
+    customer: {
+      name: row.customer_name,
+      email: row.customer_email,
+      phone: row.customer_phone,
+      city: row.city,
+      address: row.address,
+    },
+    items: items.map((item) => ({
+      productId: Number(item.product_id),
+      name: item.product_name,
+      price: Number(item.unit_price),
+      quantity: Number(item.quantity),
+      image: item.image || '',
+    })),
+  }
+}
+
+async function getOrderById(id) {
+  const rows = await query('SELECT * FROM orders WHERE id = ? OR order_number = ?', [id, id])
+  if (!rows[0]) return null
+  const items = await query('SELECT * FROM order_items WHERE order_id = ? ORDER BY id', [rows[0].id])
+  return mapOrder(rows[0], items)
+}
+
+router.post('/', async (req, res, next) => {
+  try {
+    const { items, customer, subtotal, delivery, total, payment = 'transfer' } = req.body
+    if (!Array.isArray(items) || !items.length || !customer?.name || !customer?.email || !customer?.phone || !customer?.city || !customer?.address) {
+      return res.status(400).json({ message: 'Complete customer and order information is required.' })
+    }
+
+    const result = await transaction(async (connection) => {
+      const productIds = items.map((item) => Number(item.productId))
+      const placeholders = productIds.map(() => '?').join(',')
+      const [products] = await connection.query(
+        `SELECT * FROM products WHERE id IN (${placeholders}) AND active = 1 FOR UPDATE`,
+        productIds,
+      )
+
+      const productMap = new Map(products.map((p) => [Number(p.id), p]))
+      let calculatedSubtotal = 0
+      const normalizedItems = []
+
+      for (const item of items) {
+        const product = productMap.get(Number(item.productId))
+        const quantity = Math.max(1, Number(item.quantity || 1))
+        if (!product) throw Object.assign(new Error('One of the products is no longer available.'), { status: 409 })
+        if (Number(product.stock) < quantity) {
+          throw Object.assign(new Error(`${product.name} does not have enough stock.`), { status: 409 })
+        }
+        calculatedSubtotal += Number(product.price) * quantity
+        normalizedItems.push({ product, quantity })
+      }
+
+      const calculatedDelivery = calculatedSubtotal >= 500000 ? 0 : 5000
+      const calculatedTotal = calculatedSubtotal + calculatedDelivery
+      if (Math.abs(Number(subtotal) - calculatedSubtotal) > 0.01 || Math.abs(Number(total) - calculatedTotal) > 0.01) {
+        throw Object.assign(new Error('The order total changed. Please review your cart and try again.'), { status: 409 })
+      }
+
+      const orderNumber = `SG-${Date.now().toString().slice(-8)}`
+      const [orderResult] = await connection.query(
+        `INSERT INTO orders
+        (order_number, user_id, customer_name, customer_email, customer_phone, city, address, subtotal, delivery, total, payment_method)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          orderNumber, req.user?.id || null, customer.name.trim(), customer.email.trim().toLowerCase(),
+          customer.phone.trim(), customer.city.trim(), customer.address.trim(),
+          calculatedSubtotal, calculatedDelivery, calculatedTotal, payment,
+        ],
+      )
+
+      for (const item of normalizedItems) {
+        await connection.query(
+          `INSERT INTO order_items (order_id, product_id, product_name, unit_price, quantity, image)
+           VALUES (?, ?, ?, ?, ?, ?)`,
+          [orderResult.insertId, item.product.id, item.product.name, item.product.price, item.quantity, item.product.image || ''],
+        )
+        await connection.query('UPDATE products SET stock = stock - ? WHERE id = ?', [item.quantity, item.product.id])
+      }
+
+      const [orderRows] = await connection.query('SELECT * FROM orders WHERE id = ?', [orderResult.insertId])
+      return mapOrder(orderRows[0], [])
+    })
+
+    res.status(201).json({ order: await getOrderById(result.databaseId) })
+  } catch (error) {
+    next(error)
+  }
+})
+
+router.get('/mine', requireAuth, async (req, res, next) => {
+  try {
+    const rows = await query('SELECT * FROM orders WHERE user_id = ? ORDER BY created_at DESC', [req.user.id])
+    const orders = await Promise.all(rows.map((row) => getOrderById(row.id)))
+    res.json({ orders })
+  } catch (error) {
+    next(error)
+  }
+})
+
+router.get('/:id', async (req, res, next) => {
+  try {
+    const order = await getOrderById(req.params.id)
+    if (!order) return res.status(404).json({ message: 'Order not found.' })
+    res.json({ order })
+  } catch (error) {
+    next(error)
+  }
+})
+
+export default router
