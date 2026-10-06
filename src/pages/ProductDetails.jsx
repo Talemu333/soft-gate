@@ -1,6 +1,6 @@
 import { Link, useParams } from 'react-router-dom'
 import { useState } from 'react'
-import { formatPrice } from '../data/products'
+import { formatPrice } from '../lib/format'
 import { useProducts } from '../context/ProductContext'
 import ProductCard from '../components/ProductCard'
 import { useCart } from '../context/CartContext'
