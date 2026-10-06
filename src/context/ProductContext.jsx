@@ -1,50 +1,50 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react'
-import { products as seedProducts } from '../data/products'
+import { api } from '../lib/api'
 
 const ProductContext = createContext(null)
 
-function readProducts() {
-  try {
-    const stored = JSON.parse(localStorage.getItem('softgate-products') || 'null')
-    return Array.isArray(stored) ? stored : seedProducts
-  } catch {
-    return seedProducts
-  }
-}
-
 export function ProductProvider({ children }) {
-  const [products, setProducts] = useState(readProducts)
+  const [products, setProducts] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
 
-  useEffect(() => {
-    const syncProducts = () => setProducts(readProducts())
-    window.addEventListener('storage', syncProducts)
-    window.addEventListener('softgate-products-updated', syncProducts)
-    return () => {
-      window.removeEventListener('storage', syncProducts)
-      window.removeEventListener('softgate-products-updated', syncProducts)
+  const loadProducts = async () => {
+    try {
+      setError('')
+      const data = await api('/api/products')
+      setProducts(data.products || [])
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setLoading(false)
     }
-  }, [])
-
-  const replaceProducts = (next) => {
-    setProducts(next)
-    localStorage.setItem('softgate-products', JSON.stringify(next))
-    window.dispatchEvent(new Event('softgate-products-updated'))
   }
 
-  const addProduct = (product) => replaceProducts([...products, product])
-  const updateProduct = (id, changes) => replaceProducts(products.map((product) => product.id === id ? { ...product, ...changes } : product))
-  const removeProduct = (id) => replaceProducts(products.filter((product) => product.id !== id))
+  useEffect(() => { loadProducts() }, [])
+
+  const addProduct = async (product) => {
+    const data = await api('/api/products', { method: 'POST', body: JSON.stringify(product) })
+    setProducts((current) => [data.product, ...current])
+    return data.product
+  }
+
+  const updateProduct = async (id, changes) => {
+    const data = await api(`/api/products/${id}`, { method: 'PUT', body: JSON.stringify(changes) })
+    setProducts((current) => current.map((product) => product.id === Number(id) ? data.product : product))
+    return data.product
+  }
+
+  const removeProduct = async (id) => {
+    await api(`/api/products/${id}`, { method: 'DELETE' })
+    setProducts((current) => current.filter((product) => product.id !== Number(id)))
+  }
 
   const categories = useMemo(() => ['All', ...new Set(products.map((product) => product.category).filter(Boolean))], [products])
 
   const value = useMemo(() => ({
-    products,
-    categories,
-    addProduct,
-    updateProduct,
-    removeProduct,
-    replaceProducts,
-  }), [products, categories])
+    products, categories, loading, error, refreshProducts: loadProducts,
+    addProduct, updateProduct, removeProduct,
+  }), [products, categories, loading, error])
 
   return <ProductContext.Provider value={value}>{children}</ProductContext.Provider>
 }
