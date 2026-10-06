@@ -78,7 +78,7 @@ router.patch('/orders/:id/status', async (req, res, next) => {
 
       if (nextStatus === 'Cancelled') {
         const items = await client.query(
-          'SELECT product_id, SUM(quantity)::INTEGER AS quantity FROM order_items WHERE order_id=$1 GROUP BY product_id ORDER BY product_id FOR UPDATE',
+          'SELECT product_id, SUM(quantity)::INTEGER AS quantity FROM order_items WHERE order_id=$1 GROUP BY product_id ORDER BY product_id',
           [order.id],
         )
         for (const item of items.rows) {
