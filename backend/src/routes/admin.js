@@ -7,12 +7,25 @@ router.use(requireAuth, requireAdmin)
 
 router.get('/stats', async (req, res, next) => {
   try {
-    const sales = await query("SELECT COALESCE(SUM(total),0) AS revenue, COUNT(*) AS orders, COUNT(*) FILTER (WHERE status='Processing') AS processing FROM orders")
-    const productStats = await query("SELECT COUNT(*) AS products, COUNT(*) FILTER (WHERE stock<=7) AS low_stock FROM products WHERE active=TRUE")
+    const [sales, productStats, customers, salesTrend, topProducts] = await Promise.all([
+      query("SELECT COALESCE(SUM(total) FILTER (WHERE status <> 'Cancelled'),0) AS revenue, COUNT(*) AS orders, COUNT(*) FILTER (WHERE status IN ('Processing','Confirmed')) AS pending, COUNT(*) FILTER (WHERE status='Shipped') AS shipped, COUNT(*) FILTER (WHERE status='Delivered') AS delivered FROM orders"),
+      query("SELECT COUNT(*) AS products, COUNT(*) FILTER (WHERE stock <= 7 AND stock > 0) AS low_stock, COUNT(*) FILTER (WHERE stock = 0) AS out_of_stock FROM products WHERE active=TRUE"),
+      query("SELECT COUNT(*) FILTER (WHERE role='customer') AS customers FROM users"),
+      query("SELECT TO_CHAR(DATE_TRUNC('day', created_at), 'Mon DD') AS day, COALESCE(SUM(total) FILTER (WHERE status <> 'Cancelled'),0) AS revenue, COUNT(*) AS orders FROM orders WHERE created_at >= CURRENT_DATE - INTERVAL '6 days' GROUP BY DATE_TRUNC('day', created_at) ORDER BY DATE_TRUNC('day', created_at)"),
+      query("SELECT oi.product_name AS name, SUM(oi.quantity)::INTEGER AS quantity, COALESCE(SUM(oi.unit_price * oi.quantity),0) AS revenue FROM order_items oi JOIN orders o ON o.id=oi.order_id WHERE o.status <> 'Cancelled' GROUP BY oi.product_name ORDER BY quantity DESC, revenue DESC LIMIT 5"),
+    ])
     res.json({
-      revenue: Number(sales[0]?.revenue || 0), orders: Number(sales[0]?.orders || 0),
-      processing: Number(sales[0]?.processing || 0), products: Number(productStats[0]?.products || 0),
+      revenue: Number(sales[0]?.revenue || 0),
+      orders: Number(sales[0]?.orders || 0),
+      pending: Number(sales[0]?.pending || 0),
+      shipped: Number(sales[0]?.shipped || 0),
+      delivered: Number(sales[0]?.delivered || 0),
+      products: Number(productStats[0]?.products || 0),
       lowStock: Number(productStats[0]?.low_stock || 0),
+      outOfStock: Number(productStats[0]?.out_of_stock || 0),
+      customers: Number(customers[0]?.customers || 0),
+      salesTrend: salesTrend.map((row) => ({ day: row.day, revenue: Number(row.revenue || 0), orders: Number(row.orders || 0) })),
+      topProducts: topProducts.map((row) => ({ name: row.name, quantity: Number(row.quantity || 0), revenue: Number(row.revenue || 0) })),
     })
   } catch (error) { next(error) }
 })
