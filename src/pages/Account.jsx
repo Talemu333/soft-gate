@@ -8,7 +8,7 @@ const formatPrice = (value) => '₦' + Number(value || 0).toLocaleString('en-NG'
 
 export default function Account() {
   const { count: wishlistCount } = useWishlist()
-  const { orders } = useOrders()
+  const { orders, loading: ordersLoading, ordersError, refreshOrders } = useOrders()
   const { user, logout } = useAuth()
   const [params, setParams] = useSearchParams()
   const orderDetailRef = useRef(null)
@@ -81,15 +81,21 @@ export default function Account() {
             <div><span className="eyebrow">ORDER HISTORY</span><h2>Recent orders</h2></div>
             <Link to="/shop" className="text-link">Continue shopping →</Link>
           </div>
-          {orders.length ? <div className="orders-table">{orders.map((order) => <div className="order-row" key={order.id}>
-            <div><b>#{order.id}</b><small>{order.date}</small></div>
-            <span className={`order-status ${String(order.status).toLowerCase()}`}>{order.status}</span>
-            <strong>₦{Number(order.total).toLocaleString('en-NG')}</strong>
-            <Link to={`/account?order=${encodeURIComponent(order.id)}`} className="text-link">View order</Link>
-          </div>)}</div> : <div className="admin-empty">
-            <h2>No orders yet</h2><p>Your completed purchases will appear here.</p>
-            <Link to="/shop" className="primary-button">Start shopping →</Link>
+          {ordersError && <div className="admin-demo-note" role="alert">
+            <p>We couldn't load your order history: {ordersError}</p>
+            <button className="secondary-button" type="button" onClick={() => refreshOrders().catch(() => {})}>Try again</button>
           </div>}
+          {ordersLoading && !orders.length ? <div className="admin-empty" role="status"><h2>Loading your orders…</h2><p>Please wait while we retrieve your order history.</p></div>
+            : orders.length ? <div className="orders-table">{orders.map((order) => <div className="order-row" key={order.id}>
+              <div><b>#{order.id}</b><small>{order.date}</small></div>
+              <span className={`order-status ${String(order.status).toLowerCase()}`}>{order.status}</span>
+              <strong>₦{Number(order.total).toLocaleString('en-NG')}</strong>
+              <Link to={`/account?order=${encodeURIComponent(order.id)}`} className="text-link">View order</Link>
+            </div>)}</div>
+            : !ordersError && <div className="admin-empty">
+              <h2>No orders yet</h2><p>Your purchases will appear here once an order is linked to this account.</p>
+              <Link to="/shop" className="primary-button">Start shopping →</Link>
+            </div>}
         </section>
         <section className="account-help" id="profile">
           <div><span className="eyebrow">PROFILE</span><h2>Your account details.</h2><p>{phone ? `Phone: ${phone}` : 'Add your phone number during checkout when placing an order.'}</p></div>
