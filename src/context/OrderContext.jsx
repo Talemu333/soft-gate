@@ -8,19 +8,29 @@ export function OrderProvider({ children }) {
   const { user } = useAuth()
   const [orders, setOrders] = useState([])
   const [customers, setCustomers] = useState([])
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [ordersError, setOrdersError] = useState('')
 
   const loadOrders = async () => {
     if (!user) {
       setOrders([])
+      setOrdersError('')
+      setLoading(false)
       return
     }
     setLoading(true)
+    setOrdersError('')
     try {
       const data = user.role === 'admin'
         ? await api('/api/admin/orders')
         : await api('/api/orders/mine')
-      setOrders(data.orders || [])
+      if (!Array.isArray(data.orders)) {
+        throw new Error('The server returned an unexpected order-history response.')
+      }
+      setOrders(data.orders)
+    } catch (error) {
+      setOrdersError(error.message || 'Unable to load your orders. Please try again.')
+      throw error
     } finally {
       setLoading(false)
     }
@@ -36,7 +46,7 @@ export function OrderProvider({ children }) {
   }
 
   useEffect(() => {
-    loadOrders().catch(() => setOrders([]))
+    loadOrders().catch(() => {})
     loadCustomers().catch(() => setCustomers([]))
   }, [user?.id, user?.role])
 
@@ -72,9 +82,9 @@ export function OrderProvider({ children }) {
   }
 
   const value = useMemo(() => ({
-    orders, customers, loading, createOrder, updateOrderStatus, updatePaymentStatus, getCustomerOrders,
+    orders, customers, loading, ordersError, createOrder, updateOrderStatus, updatePaymentStatus, getCustomerOrders,
     refreshOrders: loadOrders, refreshCustomers: loadCustomers,
-  }), [orders, customers, loading])
+  }), [orders, customers, loading, ordersError])
 
   return <OrderContext.Provider value={value}>{children}</OrderContext.Provider>
 }
