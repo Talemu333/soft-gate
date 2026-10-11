@@ -1,6 +1,13 @@
 import jwt from 'jsonwebtoken'
 
 export const AUTH_COOKIE = '__Host-softgate-session'
+const LOCAL_AUTH_COOKIE = 'softgate-session'
+
+function authCookieName() {
+  // Browsers only accept the __Host- prefix when Secure is enabled.
+  // Use a separate cookie name for local HTTP development.
+  return process.env.NODE_ENV === 'production' ? AUTH_COOKIE : LOCAL_AUTH_COOKIE
+}
 
 export function signToken(user) {
   return jwt.sign(
@@ -12,7 +19,7 @@ export function signToken(user) {
 
 export function setAuthCookie(res, token) {
   const isProduction = process.env.NODE_ENV === 'production'
-  res.cookie(AUTH_COOKIE, token, {
+  res.cookie(authCookieName(), token, {
     httpOnly: true,
     secure: isProduction,
     sameSite: isProduction ? 'none' : 'lax',
@@ -22,7 +29,7 @@ export function setAuthCookie(res, token) {
 }
 
 export function clearAuthCookie(res) {
-  res.clearCookie(AUTH_COOKIE, {
+  res.clearCookie(authCookieName(), {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
     sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
@@ -31,7 +38,7 @@ export function clearAuthCookie(res) {
 }
 
 function readToken(req) {
-  const cookieToken = req.cookies?.[AUTH_COOKIE]
+  const cookieToken = req.cookies?.[authCookieName()]
   if (cookieToken) return cookieToken
 
   const header = req.headers.authorization || ''
