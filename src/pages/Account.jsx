@@ -1,5 +1,5 @@
 import { Link, useSearchParams } from 'react-router-dom'
-import { useMemo } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import { useWishlist } from '../context/WishlistContext'
 import { useOrders } from '../context/OrderContext'
 import { useAuth } from '../context/AuthContext'
@@ -11,7 +11,14 @@ export default function Account() {
   const { orders } = useOrders()
   const { user, logout } = useAuth()
   const [params, setParams] = useSearchParams()
-  const selectedOrder = orders.find((order) => order.id === params.get('order'))
+  const orderDetailRef = useRef(null)
+  const orderParam = params.get('order')
+  const selectedOrder = orders.find((order) => String(order.id) === orderParam)
+
+  useEffect(() => {
+    if (!selectedOrder || !orderParam || !orderDetailRef.current) return
+    orderDetailRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }, [orderParam, selectedOrder])
 
   const name = user?.name || 'Customer'
   const email = user?.email || ''
@@ -47,7 +54,7 @@ export default function Account() {
           <article><small>Wishlist</small><strong>{wishlistCount}</strong><span>Saved products</span></article>
           <article><small>Account status</small><strong>✓</strong><span>Active customer</span></article>
         </section>
-        {selectedOrder && <section className="account-order-detail">
+        {selectedOrder && <section className="account-order-detail" ref={orderDetailRef} tabIndex={-1}>
           <div className="panel-heading"><div><span className="eyebrow">ORDER DETAILS</span><h2>Order #{selectedOrder.id}</h2><p>{selectedOrder.date}</p></div><button className="secondary-button" type="button" onClick={() => setParams({})}>Back to orders</button></div>
           {selectedOrder.status === 'Cancelled' ? (
             <div className="order-cancelled" role="status">
