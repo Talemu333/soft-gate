@@ -73,6 +73,14 @@ router.post('/', optionalAuth, async (req, res, next) => {
 
 router.get('/mine', requireAuth, async (req, res, next) => {
   try {
+    // Recover guest checkout orders that match the signed-in account's verified email.
+    // This also covers orders placed before a user signed in or while the session cookie was absent.
+    if (req.user.email) {
+      await query(
+        'UPDATE orders SET user_id = $1, updated_at = NOW() WHERE user_id IS NULL AND LOWER(customer_email) = LOWER($2)',
+        [req.user.id, req.user.email],
+      )
+    }
     const rows = await query('SELECT * FROM orders WHERE user_id=$1 ORDER BY created_at DESC', [req.user.id])
     res.json({ orders: await Promise.all(rows.map((row) => getOrderById(row.id))) })
   } catch (error) { next(error) }
