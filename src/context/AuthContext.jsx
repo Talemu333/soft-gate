@@ -32,11 +32,20 @@ export function AuthProvider({ children }) {
     return data.user
   }
 
+  const updateProfile = async (payload) => {
+    const data = await api('/api/auth/me', {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    })
+    setUser(data.user)
+    return data.user
+  }
+
   const logout = async () => {
     try { await api('/api/auth/logout', { method: 'POST' }) } finally { setUser(null) }
   }
 
-  const value = useMemo(() => ({ user, loading, login, register, logout, isAdmin: user?.role === 'admin' }), [user, loading])
+  const value = useMemo(() => ({ user, loading, login, register, updateProfile, logout, isAdmin: user?.role === 'admin' }), [user, loading])
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }
 
