@@ -27,6 +27,7 @@ The API exposes:
 - `POST /api/auth/reset-password`
 - `POST /api/auth/logout`
 - `GET /api/auth/me`
+- `PATCH /api/auth/me` (update the signed-in user's name and phone number)
 - `GET /api/products`
 - `GET /api/products/:id`
 - `POST /api/products` (admin)
