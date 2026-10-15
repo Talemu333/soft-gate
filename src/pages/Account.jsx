@@ -15,7 +15,12 @@ function paymentLabel(status) {
 export default function Account() {
   const { count: wishlistCount } = useWishlist()
   const { orders, loading: ordersLoading, ordersError, refreshOrders } = useOrders()
-  const { user, logout } = useAuth()
+  const { user, logout, updateProfile } = useAuth()
+  const [editingProfile, setEditingProfile] = useState(false)
+  const [profileForm, setProfileForm] = useState({ name: '', phone: '' })
+  const [profileSaving, setProfileSaving] = useState(false)
+  const [profileMessage, setProfileMessage] = useState('')
+  const [profileError, setProfileError] = useState('')
   const [params, setParams] = useSearchParams()
   const [orderSearch, setOrderSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('All orders')
@@ -27,6 +32,10 @@ export default function Account() {
     if (!selectedOrder || !orderParam || !orderDetailRef.current) return
     orderDetailRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }, [orderParam, selectedOrder])
+
+  useEffect(() => {
+    setProfileForm({ name: user?.name || '', phone: user?.phone || '' })
+  }, [user?.name, user?.phone])
 
   const name = user?.name || 'Customer'
   const email = user?.email || ''
@@ -128,8 +137,37 @@ export default function Account() {
             </div>}
         </section>
         <section className="account-help" id="profile">
-          <div><span className="eyebrow">ACCOUNT DETAILS</span><h2>Your account information.</h2><div className="account-profile-details"><p><span>Full name</span><strong>{name}</strong></p><p><span>Email address</span><strong>{email || 'Not provided'}</strong></p><p><span>Phone number</span><strong>{phone || 'Not added yet'}</strong></p></div><p className="account-profile-note">Need to update your details? Contact our support team and we’ll help you.</p></div>
-          <Link className="secondary-button" to="/contact">Contact support</Link>
+          <div className="account-profile-main">
+            <span className="eyebrow">ACCOUNT DETAILS</span>
+            <h2>Your account information.</h2>
+            {editingProfile ? <form className="account-profile-form" onSubmit={async (event) => {
+              event.preventDefault()
+              setProfileSaving(true)
+              setProfileMessage('')
+              setProfileError('')
+              try {
+                await updateProfile(profileForm)
+                setEditingProfile(false)
+                setProfileMessage('Your account details have been updated.')
+              } catch (error) {
+                setProfileError(error.message || 'We could not update your details. Please try again.')
+              } finally {
+                setProfileSaving(false)
+              }
+            }}>
+              <label>Full name<input required maxLength={120} autoComplete="name" value={profileForm.name} onChange={(event) => setProfileForm((current) => ({ ...current, name: event.target.value }))} /></label>
+              <label>Email address<input type="email" value={email} readOnly aria-describedby="account-email-note" /></label>
+              <p id="account-email-note" className="account-profile-note">For your security, changing your email address is not available here.</p>
+              <label>Phone number<input maxLength={40} autoComplete="tel" value={profileForm.phone} onChange={(event) => setProfileForm((current) => ({ ...current, phone: event.target.value }))} placeholder="Add a phone number (optional)" /></label>
+              {profileError && <p className="account-profile-feedback error" role="alert">{profileError}</p>}
+              <div className="account-profile-actions"><button className="primary-button" type="submit" disabled={profileSaving}>{profileSaving ? 'Saving…' : 'Save changes'}</button><button className="secondary-button" type="button" disabled={profileSaving} onClick={() => { setProfileForm({ name, phone }); setEditingProfile(false); setProfileError('') }}>Cancel</button></div>
+            </form> : <>
+              <div className="account-profile-details"><p><span>Full name</span><strong>{name}</strong></p><p><span>Email address</span><strong>{email || 'Not provided'}</strong></p><p><span>Phone number</span><strong>{phone || 'Not added yet'}</strong></p></div>
+              {profileMessage && <p className="account-profile-feedback success" role="status">{profileMessage}</p>}
+              <p className="account-profile-note">Keep your contact details up to date so we can reach you about your orders.</p>
+            </>}
+          </div>
+          {editingProfile ? null : <button className="secondary-button" type="button" onClick={() => { setProfileMessage(''); setProfileError(''); setEditingProfile(true) }}>Edit details</button>}
         </section>
       </div>
     </div>
