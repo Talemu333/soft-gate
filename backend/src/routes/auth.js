@@ -113,6 +113,27 @@ router.get('/me', requireAuth, async (req, res, next) => {
   }
 })
 
+router.patch('/me', requireAuth, async (req, res, next) => {
+  try {
+    const name = String(req.body?.name || '').trim()
+    const phone = String(req.body?.phone || '').trim()
+
+    if (!name) return res.status(400).json({ message: 'Full name is required.' })
+    if (name.length > 120) return res.status(400).json({ message: 'Full name must be 120 characters or fewer.' })
+    if (phone.length > 40) return res.status(400).json({ message: 'Phone number must be 40 characters or fewer.' })
+
+    const rows = await query(
+      'UPDATE users SET name = $1, phone = $2, updated_at = NOW() WHERE id = $3 RETURNING *',
+      [name, phone || null, req.user.id],
+    )
+    if (!rows[0]) return res.status(404).json({ message: 'Account no longer exists.' })
+
+    res.json({ user: publicUser(rows[0]) })
+  } catch (error) {
+    next(error)
+  }
+})
+
 router.post('/forgot-password', async (req, res, next) => {
   const normalizedEmail = String(req.body?.email || '').trim().toLowerCase()
   const genericMessage = 'If an account exists for that email, we will send a password reset link.'
