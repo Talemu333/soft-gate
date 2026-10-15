@@ -51,7 +51,13 @@ app.get('/api/health', async (req, res) => {
   try {
     await query('SELECT 1')
     res.json({ ok: true, service: 'soft-gate-api', database: 'connected' })
-  } catch {
+  } catch (error) {
+    // Keep connection details out of the HTTP response, but log the diagnostic
+    // fields needed to identify credential, TLS, DNS, and timeout failures.
+    console.error('Database health check failed:', {
+      code: error?.code || 'UNKNOWN',
+      message: error?.message || 'No error message supplied',
+    })
     res.status(503).json({ ok: false, service: 'soft-gate-api', database: 'unavailable' })
   }
 })
