@@ -22,13 +22,6 @@ function resetTokenHash(token) {
   return createHash('sha256').update(token).digest('hex')
 }
 
-async function claimGuestOrders(user) {
-  await query(
-    'UPDATE orders SET user_id = $1, updated_at = NOW() WHERE user_id IS NULL AND LOWER(customer_email) = LOWER($2)',
-    [user.id, user.email],
-  )
-}
-
 function canRequestReset(key) {
   const now = Date.now()
   const windowMs = 15 * 60 * 1000
@@ -70,7 +63,6 @@ router.post('/register', async (req, res, next) => {
       [name.trim(), normalizedEmail, passwordHash, phone?.trim() || null],
     )
     const user = rows[0]
-    await claimGuestOrders(user)
     setAuthCookie(res, signToken(user))
     res.status(201).json({ user: publicUser(user) })
   } catch (error) {
@@ -90,7 +82,6 @@ router.post('/login', async (req, res, next) => {
       return res.status(401).json({ message: 'Invalid email or password.' })
     }
 
-    await claimGuestOrders(user)
     setAuthCookie(res, signToken(user))
     res.json({ user: publicUser(user) })
   } catch (error) {
